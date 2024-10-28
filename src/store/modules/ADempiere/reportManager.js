@@ -177,6 +177,7 @@ const reportManager = {
       tableName,
       isSummary,
       recordUuid,
+      pageToken,
       pageSize
     }) {
       return new Promise(resolve => {
@@ -234,6 +235,7 @@ const reportManager = {
           isSummary,
           tableName,
           recordId,
+          pageToken,
           pageSize
         })
       })
@@ -679,7 +681,6 @@ const reportManager = {
       if (isEmptyValue(reportName) && !isEmptyValue(action)) {
         reportName = action.name
       }
-
       commit('setReportIsLoading', true)
       if ((isEmptyValue(instanceUuid) || reportDefinition.is_process_before_launch) && !isChangePanel) {
         dispatch('startReport', {
@@ -687,7 +688,9 @@ const reportManager = {
           reportType,
           printFormatId,
           reportViewId,
-          isSummary
+          isSummary,
+          pageToken,
+          pageSize
         })
         return
       }
