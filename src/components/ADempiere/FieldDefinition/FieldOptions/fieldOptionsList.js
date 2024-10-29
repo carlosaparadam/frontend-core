@@ -55,7 +55,7 @@ export const zoomInOptionItem = {
   componentRender: () => import('@/components/ADempiere/FieldDefinition/FieldOptions/EmptyOption'),
   executeMethod: ({ containerManager, window, fieldAttributes, value, zoom }) => {
     const { parentUuid, containerUuid, reference } = fieldAttributes
-    let children
+    let children, recordIdChildren
     let zoom_windows = reference.zoom_windows
     if (isEmptyValue(zoom_windows)) {
       zoom_windows = zoom.zoom_windows
@@ -107,13 +107,21 @@ export const zoomInOptionItem = {
       columnName = zoom.parentTab.key_column
       currentValue = zoom.parentTab.record_id
       children = windowToZoom
+      recordIdChildren = store.getters.getValueOfFieldOnContainer({
+        parentUuid,
+        containerUuid,
+        columnName: zoom.key_columns
+      })
     }
 
     zoomIn({
       attributeValue: `window_${windowToZoom.id}`,
       attributeName: 'containerKey',
       query: {
-        [columnName]: currentValue
+        [columnName]: currentValue,
+        columnName: zoom.key_columns,
+        recordIdChildren,
+        childrenZoom: zoom
       },
       params: {
         [columnName]: currentValue,

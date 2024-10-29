@@ -408,13 +408,24 @@ export default defineComponent({
         }
 
         // set first record
+        if (
+          !isEmptyValue(root.$route.query) &&
+          !isEmptyValue(root.$route.query.columnName)
+        ) {
+          row = responseData.find(row => row[root.$route.query.columnName] === Number(root.$route.query.recordIdChildren))
+          setRecordRoute({
+            row,
+            recordChildId: Number(root.$route.query.recordIdChildren)
+          })
+        }
         if (isEmptyValue(row)) {
           row = responseData[0]
-          props.containerManager.seekRecord({
-            parentUuid: props.parentUuid,
-            containerUuid,
-            row
-          })
+          // props.containerManager.seekRecord({
+          //   parentUuid: props.parentUuid,
+          //   containerUuid,
+          //   row
+          // })
+          setRecordRoute({ row })
         }
 
         // set values in panel
@@ -502,7 +513,7 @@ export default defineComponent({
           index: indexTab
         })
       }
-    }, 2000)
+    }, 100)
 
     watch(showedTabsList, (newValue, oldValue) => {
       if (newValue) {
@@ -519,25 +530,6 @@ export default defineComponent({
       }
     })
 
-    // unsuscribeChangeParentRecord = store.subscribeAction({
-    //   after: (action, state) => {
-    //     if (action.type === 'setTabDefaultValues' && action.payload) {
-    //       const currentChildTab = currentTabMetadata.value
-    //       if (action.payload.parentUuid === currentChildTab.parentUuid) {
-    //         const isChangeParentTab = currentChildTab.parentTabs.some(tabItem => {
-    //           return tabItem.uuid === action.payload.containerUuid
-    //         })
-    //         if (isChangeParentTab) {
-    //           store.dispatch('setTabDefaultValues', {
-    //             parentUuid: action.payload.parentUuid,
-    //             containerUuid: currentChildTab.containerUuid
-    //           })
-    //         }
-    //       }
-    //     }
-    //   }
-    // })
-
     setTabNumber(currentTabNo.value)
 
     // remove susbscriptions
@@ -548,6 +540,21 @@ export default defineComponent({
     function selectTab(params) {
       store.dispatch('panelInfo', {
         currentTab: params
+      })
+    }
+
+    function setRecordRoute({
+      row,
+      recordChildId
+    }) {
+      props.containerManager.seekRecord({
+        parentUuid: props.parentUuid,
+        containerUuid: tabUuid.value,
+        row
+      })
+      if (isEmptyValue(recordChildId)) return
+      setRecordPath({
+        recordChildId
       })
     }
 
@@ -571,6 +578,7 @@ export default defineComponent({
       // methods
       handleClick,
       isDisabledTab,
+      setRecordRoute,
       changeShowedRecords,
       selectTab
     }
