@@ -1,7 +1,7 @@
 import router from '@/router'
 
 // constants
-import { REPORT_VIEWER_NAME } from '@/utils/ADempiere/constants/report'
+import { REPORT_VIEWER_NAME, REPORT_VIEWER_ENGINE_NAME } from '@/utils/ADempiere/constants/report'
 
 const state = {
   visitedViews: [],
@@ -11,6 +11,13 @@ const state = {
 const mutations = {
   ADD_VISITED_VIEW: (state, view) => {
     if (view.name === REPORT_VIEWER_NAME) {
+      if (state.visitedViews.some(v => v.path === view.path)) return
+      state.visitedViews.push(
+        Object.assign({}, view, {
+          title: view.meta.title
+        })
+      )
+    } else if (view.name === REPORT_VIEWER_ENGINE_NAME) {
       if (state.visitedViews.some(v => v.path === view.path)) return
       state.visitedViews.push(
         Object.assign({}, view, {

@@ -21,6 +21,7 @@ import language from '@/lang'
 const today = new Date()
 
 export const REPORT_VIEWER_NAME = 'Report Viewer'
+export const REPORT_VIEWER_ENGINE_NAME = 'Report Viewer Engine'
 
 export const staticReportRoutes = [
   {

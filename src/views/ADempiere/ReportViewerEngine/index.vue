@@ -186,7 +186,8 @@ export default defineComponent({
         getCachedReport()
         return
       }
-
+      // console.log({ reportId })
+      if (isEmptyValue(reportId)) return
       store.dispatch('getReportDefinitionFromServer', {
         id: reportId
       }).then(() => {

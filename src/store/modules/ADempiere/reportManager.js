@@ -45,7 +45,7 @@ import {
   DEFAULT_REPORT_TYPE
 } from '@/utils/ADempiere/dictionary/report.js'
 import { config } from '@/utils/ADempiere/config'
-import { REPORT_VIEWER_NAME } from '@/utils/ADempiere/constants/report'
+import { REPORT_VIEWER_NAME, REPORT_VIEWER_ENGINE_NAME } from '@/utils/ADempiere/constants/report'
 
 // Utils and Helper Methods
 import { getToken } from '@/utils/auth'
@@ -789,20 +789,27 @@ const reportManager = {
             const {
               // id,
               name,
-              instance_id,
-              report_view_id
+              instance_id
             } = reportResponse
             if (!isView) {
               router.push({
-                path: `report-viewer-engine/${reportId}/${instance_id}/${report_view_id}`,
-                name: 'Report Viewer Engine',
+                path: `/report-viewer-engine/${reportId}/${reportUuid}`,
+                name: REPORT_VIEWER_ENGINE_NAME,
                 params: {
                   reportId,
                   instanceUuid: instance_id,
                   fileName: name,
                   reportUuid,
                   // menuParentUuid,
-                  name: name + instance_id,
+                  name: name,
+                  tableName
+                },
+                query: {
+                  reportId,
+                  instanceUuid: instance_id,
+                  fileName: reportResponse.name,
+                  reportUuid,
+                  name: reportResponse.name,
                   tableName
                 }
               }, () => {})

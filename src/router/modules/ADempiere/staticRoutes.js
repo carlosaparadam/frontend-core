@@ -22,7 +22,7 @@ import Layout from '@/layout'
 import language from '@/lang'
 
 // Constants
-import { REPORT_VIEWER_NAME } from '@/utils/ADempiere/constants/report'
+import { REPORT_VIEWER_NAME, REPORT_VIEWER_ENGINE_NAME } from '@/utils/ADempiere/constants/report'
 import { REQUEST_ALL_WINDOW_ID } from '@/utils/ADempiere/dictionary/form/Issues'
 
 // Utils and Helper Methods
@@ -269,14 +269,14 @@ const staticRoutes = [
   },
 
   {
-    path: '/report-viewer-engine/:reportId/:instance_id',
+    path: '/report-viewer-engine/:reportId/:reportUuid',
     component: Layout,
     hidden: true,
     children: [
       {
-        path: '/report-viewer-engine/:reportId/:instance_id?',
+        path: '/report-viewer-engine/:reportId/:reportUuid?',
         component: () => import('@/views/ADempiere/ReportViewerEngine'),
-        name: 'Report Viewer Engine',
+        name: REPORT_VIEWER_ENGINE_NAME,
         meta: {
           title: language.t('route.reportViewer'),
           type: 'report',
