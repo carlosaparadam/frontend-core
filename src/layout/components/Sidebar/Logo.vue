@@ -24,9 +24,18 @@
           <div slot="content">
             {{ getRole.name }} | {{ getRole.client.name }} | {{ storedOrganization.name }}
           </div>
-          <img v-if="clientLogo" :src="clientLogo" class="sidebar-logo" style="height: 50px;width: 50px;">
-          <img v-else src="https://avatars1.githubusercontent.com/u/1263359?s=200&v=4" class="sidebar-logo" style="height: 50px;width: 50px;">
-          <!-- <svg-icon v-else icon-class="AD" class="standard-logo" /> -->
+          <el-image
+            style="width: 50px; height: 50px"
+            class="sidebar-logo"
+            :src="imageUrl"
+            fit="cover"
+          >
+            <div slot="error" class="image-slot">
+              <img src="https://avatars1.githubusercontent.com/u/1263359?s=200&v=4" class="sidebar-logo" style="height: 50px;width: 50px;" @click="dashboard()">
+            </div>
+          </el-image>
+          <!-- <img v-if="clientLogo" :src="clientLogo" class="sidebar-logo" style="height: 50px;width: 50px;">
+          <img v-else src="https://avatars1.githubusercontent.com/u/1263359?s=200&v=4" class="sidebar-logo" style="height: 50px;width: 50px;"> -->
           <b style="margin-left: 5px;">{{ title }}</b>
         </el-tooltip>
       </router-link>
@@ -43,9 +52,6 @@
               <img src="https://avatars1.githubusercontent.com/u/1263359?s=200&v=4" class="sidebar-logo" style="height: 50px;width: 50px;" @click="dashboard()">
             </div>
           </el-image>
-          <!-- <img v-if="imageUrl" :src="imageUrl" class="sidebar-logo" style="height: 50px;width: 50px;" @click="dashboard()">
-          <img v-else src="https://avatars1.githubusercontent.com/u/1263359?s=200&v=4" class="sidebar-logo" style="height: 50px;width: 50px;" @click="dashboard()"> -->
-          <!-- <svg-icon v-else icon-class="AD" class="standard-logo" /> -->
           <b style="color: white;font-size: 18px;padding-top: 15px;cursor: pointer; margin-left: 5px;" @click="dashboard()">
             {{ systemName }}
           </b>
