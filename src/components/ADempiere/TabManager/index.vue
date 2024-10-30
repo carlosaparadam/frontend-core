@@ -676,6 +676,18 @@ export default defineComponent({
       })
     }
 
+    function focusLost(currentTab) {
+      const { containerUuid } = currentTab
+      const columnName = store.getters.getFieldFocusColumnName
+      const currentFieldFocus = document.getElementById(`${columnName}`)
+      currentFieldFocus.__vue__.blur()
+      store.dispatch('notifyFocusLost', {
+        containerUuid,
+        columnName,
+        value: undefined
+      })
+    }
+
     function theAction(event) {
       const { currentTab } = store.getters.getContainerInfo
       switch (event.srcKey) {
@@ -683,7 +695,10 @@ export default defineComponent({
           newRecordTab(currentTab)
           break
         case 'save':
-          saveRecordTab(currentTab)
+          focusLost(currentTab)
+          setTimeout(() => {
+            saveRecordTab(currentTab)
+          }, 500)
           break
         case 'undo':
           undoChanges(currentTab)
