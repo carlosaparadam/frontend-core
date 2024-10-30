@@ -49,10 +49,11 @@
         >
           <template slot-scope="scope">
             <el-dropdown
-              v-if="header.columnName === 'name'"
+              v-if="header.columnName === 'name' || header.columnName === 'value'"
+              style="font-size: 10px !important"
               :class="classChecker({ row: scope.row, column: header })"
               trigger="click"
-              @command="zoomInWindow(scope.row)"
+              @command="command => handleCommand(command, scope.row)"
             >
               <span>{{ scope.row[header.columnName] }}</span>
               <el-dropdown-menu slot="dropdown">
@@ -60,6 +61,12 @@
                   <i class="el-icon-zoom-in" style="font-weight: bolder;" />
                   <b>
                     {{ $t('page.processActivity.zoomIn') }} {{ ' - ' }} {{ scope.row[header.columnName] }}
+                  </b>
+                </el-dropdown-item>
+                <el-dropdown-item command="report">
+                  <i class="el-icon-printer" style="font-weight: bolder;" />
+                  <b>
+                    {{ $t('form.WTrialBalance.report') }} {{ ' - ' }} {{ scope.row[header.columnName] }}
                   </b>
                 </el-dropdown-item>
               </el-dropdown-menu>
@@ -84,12 +91,15 @@ import {
 } from '@vue/composition-api'
 import lang from '@/lang'
 import store from '@/store'
+import language from '@/lang'
+
 // API Request Methods
 
 // Utils and Helper Methods
 import optionsWtrialBalance from './options'
 import { zoomIn } from '@/utils/ADempiere/coreUtils.js'
 import { isEmptyValue } from '@/utils/ADempiere'
+import { showNotification } from '@/utils/ADempiere/notification.js'
 
 export default defineComponent({
   name: 'WTrialBalance',
@@ -140,6 +150,12 @@ export default defineComponent({
     })
     const budget = computed(() => {
       return store.getters.getBudget
+    })
+    const organization = computed(() => {
+      return store.getters.getOrganization
+    })
+    const period = computed(() => {
+      return store.getters.getPeriod
     })
     // Data Table
     const headerList = ref([
@@ -208,7 +224,7 @@ export default defineComponent({
      * Methods
      */
     function getColumnStyle() {
-      return 'padding: 0; height: 30px; border: none; font-size: 10px '
+      return 'padding: 0; height: 30px; border: none; font-size: 10px !important '
     }
 
     function changeSelections(selection) {
@@ -283,12 +299,56 @@ export default defineComponent({
         }
       })
     }
+    function handleCommand(command, scope) {
+      if (command === 'report') {
+        generateReport(scope)
+        return
+      }
+      zoomInWindow(scope)
+    }
+
+    function generateReport(scope) {
+      const reportUuid = 'a42b154a-fb40-11e8-a479-7a0060f0aa01'
+      store.dispatch('getReportDefinitionFromServer', {
+        id: reportUuid
+      })
+        .then(res => {
+          if (!isEmptyValue(res)) {
+            showNotification({
+              title: language.t('notifications.processing'),
+              message: res.name,
+              summary: res.description,
+              type: 'info'
+            })
+            const reportId = res.internal_id
+            const filteredData = res.fieldsList.filter(item => item.columnName === 'C_AcctSchema_ID')
+            const filters = [
+              { 'name': 'C_AcctSchema_ID', 'operator': 'equal', 'values': filteredData[0].parsedDefaultValue },
+              { 'name': 'AD_Org_ID', 'operator': 'equal', 'values': organization.value },
+              { 'name': 'PostingType', 'operator': 'equal', 'values': 'A' },
+              { 'name': 'isShowRetainedEarnings', 'operator': 'equal', 'values': false },
+              { 'name': 'C_Period_ID', 'operator': 'equal', 'values': period.value },
+              { 'name': 'Account_ID', 'operator': 'equal', 'values': scope.id }
+            ]
+            store.dispatch('generateReportViwer', {
+              reportType: 'pdf',
+              reportId,
+              filters: JSON.stringify(filters),
+              reportUuid,
+              containerUuid: res.containerUuid,
+              isSummary: true
+            })
+          }
+        })
+    }
     return {
       //  Computed
       isVisible,
       showPeriod,
       showAccumulated,
       budget,
+      organization,
+      period,
       // Data Table
       listSummary,
       headerList,
@@ -300,7 +360,9 @@ export default defineComponent({
       getSummaries,
       changeView,
       getColumnStyle,
-      zoomInWindow
+      zoomInWindow,
+      generateReport,
+      handleCommand
     }
   }
 })
