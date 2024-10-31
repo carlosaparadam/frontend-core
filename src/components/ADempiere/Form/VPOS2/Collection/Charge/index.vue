@@ -284,7 +284,8 @@ export default defineComponent({
       const currency = getCurrencyPayment({
         paymentMethods: currentPaymentMethod
       })
-      updateAmount(0)
+      const { open_amount } = store.getters.getCurrentOrder
+      updateAmount(open_amount)
       store.commit('setAvailableCurrencies', currency)
       clearFieldsCollections()
     }

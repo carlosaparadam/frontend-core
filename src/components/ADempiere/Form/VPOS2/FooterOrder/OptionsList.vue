@@ -185,7 +185,8 @@ export default defineComponent({
       if (isEmptyValue(currentPointOfSales.value)) return ''
       if (!isEmptyValue(currentOrder.value.id)) return currentOrder.value.document_type.name
       const { document_type } = currentPointOfSales.value
-      return document_type.name
+      if (!isEmptyValue(document_type)) return document_type.name
+      return ''
     })
 
     const listDocumentTypes = computed(() => {
@@ -196,7 +197,8 @@ export default defineComponent({
       if (isEmptyValue(currentPointOfSales.value)) return ''
       if (!isEmptyValue(currentOrder.value.id)) return currentOrder.value.price_list.name
       const { price_list } = currentPointOfSales.value
-      return price_list.name
+      if (!isEmptyValue(price_list)) return price_list.name
+      return ''
     })
 
     const listPrices = computed(() => {
@@ -211,7 +213,8 @@ export default defineComponent({
       if (isEmptyValue(currentPointOfSales.value)) return ''
       if (!isEmptyValue(currentOrder.value.id)) return currentOrder.value.warehouse.name
       const { warehouse } = currentPointOfSales.value
-      return warehouse.name
+      if (!isEmptyValue(warehouse)) return warehouse.name
+      return ''
     })
 
     const pointCampaigns = computed(() => {

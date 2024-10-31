@@ -59,8 +59,19 @@ export default defineComponent({
         isShowed: true
       })
     }
+
+    function fetchMethodsPayments() {
+      const listPaymentMethods = store.getters.getListPaymentMethods
+      if (isEmptyValue(listPaymentMethods)) {
+        store.dispatch('availablePaymentMethods')
+      }
+    }
+
+    fetchMethodsPayments()
+
     return {
-      openCahs
+      openCahs,
+      fetchMethodsPayments
     }
   }
 })

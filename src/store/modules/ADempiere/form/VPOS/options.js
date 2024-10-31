@@ -1102,6 +1102,10 @@ export default {
             if (!isEmptyValue(error.response) && !isEmptyValue(error.response.data.message)) {
               message = error.response.data.message
             }
+            commit('setAttributeCashClosings', {
+              attribute: 'listSummary',
+              value: []
+            })
 
             showMessage({
               type: 'error',
