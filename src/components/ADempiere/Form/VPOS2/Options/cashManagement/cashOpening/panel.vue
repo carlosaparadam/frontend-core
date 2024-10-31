@@ -75,7 +75,7 @@
           type="success"
           icon="el-icon-plus"
           class="button-base-icon"
-          :disabled="isLoadingPayment || amount <= 0"
+          :disabled="isLoadingPayment"
           :loading="isLoadingPayment"
           @click="addPayment"
         />
