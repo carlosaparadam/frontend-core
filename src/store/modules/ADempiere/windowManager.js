@@ -91,7 +91,9 @@ const windowManager = {
       isLoading = false,
       pageNumber = 1,
       pageSize = ROWS_OF_RECORDS_BY_PAGE_HIGH,
-      sortBy
+      sortBy,
+      referenceUuid,
+      contextAttributes
     }) {
       const dataTab = {
         parentUuid,
@@ -107,7 +109,9 @@ const windowManager = {
         isLoading,
         pageNumber,
         pageSize,
-        sortBy
+        sortBy,
+        referenceUuid,
+        contextAttributes
       }
       Vue.set(state.tabData, containerUuid, dataTab)
       Vue.set(state.oldTabData, containerUuid, dataTab)
@@ -300,6 +304,12 @@ const windowManager = {
       sortBy
     }) {
       return new Promise(resolve => {
+        if (isEmptyValue(filters)) {
+          filters = rootGetters.getTabDataFilters({
+            parentUuid,
+            containerUuid
+          })
+        }
         const {
           isParentTab,
           is_has_tree,
@@ -310,12 +320,10 @@ const windowManager = {
           parent_column_name,
           context_column_names
         } = rootGetters.getStoredTab(parentUuid, containerUuid)
-
         if (!isEmptyValue(filters) && typeof filters !== 'object') {
           const parseFilter = JSON.parse(filters)
           filters = [parseFilter]
         }
-
         // add filters with link column name and parent column name
         if (
           !isEmptyValue(link_column_name) &&
@@ -357,7 +365,6 @@ const windowManager = {
             console.warn(`Get entities without context to ${parent_column_name} to filter in getEntities`)
           }
         }
-
         // get context values
         const contextAttributesList = getContextAttributes({
           parentUuid,
@@ -365,7 +372,6 @@ const windowManager = {
           keyName: 'key',
           format: 'object'
         })
-
         // const isWithoutValues = context_column_names.find(columnName =>
         //   isEmptyValue(columnName) ||
         //   isEmptyValue(contextAttributesList[columnName])
@@ -375,8 +381,12 @@ const windowManager = {
         //   resolve([])
         //   return
         // }
-
-        if (!isEmptyValue(filtersRecord) && isEmptyValue(filters)) {
+        if (isEmptyValue(referenceUuid)) {
+          referenceUuid = getters.getTabData({
+            containerUuid
+          }).referenceUuid
+        }
+        if (!isEmptyValue(filtersRecord) && isEmptyValue(filters) && isEmptyValue(referenceUuid)) {
           // filters.map(list => {
           //   const { columnName } = list
           //   if (filtersRecord.columnName === columnName) {
@@ -461,7 +471,6 @@ const windowManager = {
         if (!isEmptyValue(contextAttributesList)) {
           contextAttributes = JSON.stringify(contextAttributesList)
         }
-
         let listFilters
         if (!isEmptyValue(filters)) {
           listFilters = '[' + filters.map(parameter => {
@@ -480,7 +489,23 @@ const windowManager = {
             })
           }).toString() + ']'
         }
-
+        if (!isEmptyValue(contextAttributes)) {
+          commit('setTabData', {
+            containerUuid,
+            contextAttributes
+          })
+        }
+        if (!isEmptyValue(referenceUuid)) {
+          commit('setTabData', {
+            containerUuid,
+            referenceUuid
+          })
+        }
+        if (isEmptyValue(contextAttributes)) {
+          contextAttributes = getters.getTabData({
+            containerUuid
+          }).contextAttributes
+        }
         requestGetEntities({
           tabId: internal_id,
           contextAttributes,
@@ -614,7 +639,8 @@ const windowManager = {
               isLoaded: true,
               isLoading: false,
               recordCount: dataResponse.recordCount,
-              sortBy
+              sortBy,
+              contextAttributes
             })
 
             if (isEmptyValue(dataToStored)) {
@@ -648,7 +674,8 @@ const windowManager = {
             commit('setTabData', {
               parentUuid,
               isLoaded: true,
-              containerUuid
+              containerUuid,
+              contextAttributes
             })
             commit('setIsLoadingTabRecordsList', {
               containerUuid,
