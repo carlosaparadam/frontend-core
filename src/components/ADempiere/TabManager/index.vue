@@ -680,7 +680,7 @@ export default defineComponent({
       const { containerUuid } = currentTab
       const columnName = store.getters.getFieldFocusColumnName
       const currentFieldFocus = document.getElementById(`${columnName}`)
-      if (!isEmptyValue) {
+      if (!isEmptyValue(currentFieldFocus)) {
         currentFieldFocus.__vue__.blur()
       }
       store.dispatch('notifyFocusLost', {

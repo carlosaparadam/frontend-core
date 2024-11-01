@@ -145,22 +145,21 @@ export default {
             columnName: column_name,
             value: newValue
           })
-        } else {
+        }
+        store.commit('updateValueOfField', {
+          parentUuid: this.metadata.parentUuid,
+          containerUuid,
+          columnName: column_name,
+          value: newValue
+        })
+        // update element column name
+        if (!this.metadata.isSameColumnElement) {
           store.commit('updateValueOfField', {
             parentUuid: this.metadata.parentUuid,
             containerUuid,
-            columnName: column_name,
+            columnName: this.metadata.element_name,
             value: newValue
           })
-          // update element column name
-          if (!this.metadata.isSameColumnElement) {
-            store.commit('updateValueOfField', {
-              parentUuid: this.metadata.parentUuid,
-              containerUuid,
-              columnName: this.metadata.element_name,
-              value: newValue
-            })
-          }
         }
       }
     },
