@@ -61,7 +61,7 @@ export function getCurrency() {
  * @returns {number}
  */
 export function getStandardPrecision() {
-  return store.getters.getStandardPrecision
+  return store.getters['user/getCurrencyPrecision'].standard_precision
 }
 
 /**
@@ -158,7 +158,7 @@ export function formatQuantity({ value, isInteger = false, precision }) {
  * @param {string} country
  * @returns {number}
  */
-export function formatPrice({ value, currency, country = '' }) {
+export function formatPrice({ value, currency, country = '', precision }) {
   if (isEmptyValue(value)) {
     value = 0
   }
@@ -184,8 +184,8 @@ export function formatPrice({ value, currency, country = '' }) {
       style: 'currency',
       currency,
       useGrouping: true,
-      // minimumFractionDigits: precision,
-      // maximumFractionDigits: precision,
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision,
       minimumIntegerDigits: 1
     }).format(value)
   } catch (e) {
