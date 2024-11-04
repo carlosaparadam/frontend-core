@@ -565,8 +565,13 @@ export const FIELDS_DECIMALS = [
   QUANTITY.id
 ]
 
-export const FIELDS_QUANTITY = [
+export const FIELDS_AMOUNT = [
   AMOUNT.id,
+  COSTS_PLUS_PRICES.id,
+  NUMBER.id
+]
+
+export const FIELDS_QUANTITY = [
   COSTS_PLUS_PRICES.id,
   INTEGER.id,
   NUMBER.id,
@@ -620,6 +625,15 @@ export function isIntegerField(displayType) {
  */
 export function isDecimalField(displayType) {
   return FIELDS_DECIMALS.includes(displayType)
+}
+
+/**
+ * Is Amount number field
+ * @param {number} displayType
+ * @returns {boolean}
+ */
+export function isAmountDecimalField(displayType) {
+  return FIELDS_AMOUNT.includes(displayType)
 }
 
 export const FIELDS_FILE = [

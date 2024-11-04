@@ -19,10 +19,10 @@
 import language from '@/lang'
 
 // Constants
-import { CLIENT, ORGANIZATION, CURRENCY, WAREHOUSE } from '@/utils/ADempiere/constants/systemColumns'
+import { CLIENT, ORGANIZATION, CURRENCY, UOM, WAREHOUSE } from '@/utils/ADempiere/constants/systemColumns'
 import { title } from '@/settings'
 import { config } from '@/utils/ADempiere/config'
-import { ACCOUNTING_CONTEXT_PREFIX } from '@/utils/ADempiere/contextUtils'
+import { ACCOUNTING_CONTEXT_PREFIX, GLOBAL_CONTEXT_PREFIX } from '@/utils/ADempiere/contextUtils'
 
 // API Request Methods
 import {
@@ -46,7 +46,7 @@ import {
   systemInfoS3,
   systemInfoReportEngine
 } from '@/api/ADempiere/common/index.ts'
-import { getCurrencyPrecision } from '@/api/ADempiere/system-core.js'
+import { getCurrencyPrecision, getUnitOfMeasure } from '@/api/ADempiere/system-core.js'
 
 // Utils and Helper Methods
 import { resetRouter } from '@/router'
@@ -85,6 +85,7 @@ const state = {
   dictionary: {},
   s3Version: {},
   precisionContext: {},
+  precisionUOMContext: {},
   reportEngineVersion: {}
 }
 
@@ -157,6 +158,9 @@ const mutations = {
   },
   setCurrencyPrecision(state, precision) {
     state.precisionContext = precision
+  },
+  setUOMPrecision(state, precision) {
+    state.precisionUOMContext = precision
   }
 }
 
@@ -232,6 +236,9 @@ const actions = {
           dispatch('systemReportEngine')
           dispatch('currencyPrecision', {
             id: defaultContext[ACCOUNTING_CONTEXT_PREFIX + CURRENCY]
+          })
+          dispatch('unitOfMeasurePrecision', {
+            id: defaultContext[GLOBAL_CONTEXT_PREFIX + UOM]
           })
           commit('setIsSession', true)
           commit('setSessionInfo', {
@@ -321,6 +328,26 @@ const actions = {
       })
         .then(response => {
           commit('setCurrencyPrecision', response)
+          resolve(response)
+        })
+        .catch(error => {
+          reject(error)
+        })
+    })
+  },
+
+  /**
+   * Get Unit Of Measure
+   */
+  unitOfMeasurePrecision({ commit }, {
+    id
+  }) {
+    return new Promise((resolve, reject) => {
+      getUnitOfMeasure({
+        id
+      })
+        .then(response => {
+          commit('setUOMPrecision', response)
           resolve(response)
         })
         .catch(error => {
@@ -936,6 +963,9 @@ const getters = {
   },
   getCurrencyPrecision: (state) => {
     return state.precisionContext
+  },
+  getUOMPrecision: (state) => {
+    return state.precisionUOMContext
   }
 }
 

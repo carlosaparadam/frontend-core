@@ -75,7 +75,7 @@ import {
 import { CURRENCY } from '@/utils/ADempiere/constants/systemColumns'
 
 // Utils and Helper Methods
-import { isDecimalField } from '@/utils/ADempiere/references.js'
+import { isAmountDecimalField, isNumberField } from '@/utils/ADempiere/references.js'
 import { formatNumber } from '@/utils/ADempiere/formatValue/numberFormat.js'
 import { getTypeOfValue, isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 import { standardPrecisionContext } from '@/utils/ADempiere/formatValue/numberFormat.js'
@@ -122,18 +122,28 @@ export default {
     },
     precision() {
       // Amount, Costs+Prices, Number, Quantity
-      if (!isEmptyValue(this.metadata.precision)) {
-        return this.metadata.precision
+      const {
+        precision,
+        parentUuid,
+        display_type,
+        containerUuid
+      } = this.metadata
+      if (!isEmptyValue(precision)) {
+        return precision
       }
-      if (this.metadata.display_type === NUMBER.id) {
+      if (display_type === NUMBER.id) {
         return standardPrecisionContext({
-          parentUuid: this.metadata.parentUuid,
-          containerUuid: this.metadata.containerUuid
+          parentUuid: parentUuid,
+          containerUuid: containerUuid
         })
       }
-      if (isDecimalField(this.metadata.display_type)) {
+      if (isAmountDecimalField(display_type)) {
         // return store.getters.getStandardPrecision
-        return store.getters.getCurrencyPrecision
+        return store.getters['user/getCurrencyPrecision'].standard_precision
+      }
+      if (isNumberField(display_type)) {
+        // return store.getters.getStandardPrecision
+        return store.getters['user/getUOMPrecision'].standard_precision
       }
       return undefined
     },

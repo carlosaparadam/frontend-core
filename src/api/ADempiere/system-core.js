@@ -126,3 +126,15 @@ export function getCurrencyPrecision({
     method: 'get'
   })
 }
+
+/**
+ * Get Unit Of Measure
+ */
+export function getUnitOfMeasure({
+  id
+}) {
+  return request({
+    url: `core-functionality/uom/${id}`,
+    method: 'get'
+  })
+}

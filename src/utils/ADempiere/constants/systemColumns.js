@@ -38,6 +38,8 @@ export const CURRENCY = 'C_Currency_ID'
 
 export const WAREHOUSE = 'M_Warehouse_ID'
 
+export const UOM = 'C_UOM_ID'
+
 export const IS_SALES_TRANSACTION = 'IsSalesTransaction'
 
 export const IS_SO_TRX = 'IsSOTrx'
