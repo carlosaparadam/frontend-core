@@ -19,14 +19,15 @@
 <template>
   <div style="padding: 10px;height: -webkit-fill-available;">
     <filter-columns />
-
     <el-table
       v-loading="isLoadingDataTable"
+      class="table-acct-viewer"
       :data="tableData"
+      border
       :element-loading-text="$t('notifications.loading')"
       element-loading-background="rgba(255, 255, 255, 0.8)"
-      border
-      style="height: 70%;"
+      style="height: calc(100vh - 390px); font-size: 12px;"
+      :cell-style="getColumnStyle"
     >
       <index-column
         :page-number="1"
@@ -44,7 +45,7 @@
 
       <el-table-column
         :label="$t('form.accountingViewer.account')"
-        :min-width="110"
+        :min-width="250"
         header-align="center"
       >
         <template slot-scope="scope">
@@ -54,7 +55,7 @@
 
       <el-table-column
         :label="$t('form.accountingViewer.accountedDebit')"
-        :min-width="170"
+        :min-width="100"
         header-align="center"
       >
         <span slot-scope="scope" class="cell-align-right">
@@ -64,7 +65,7 @@
 
       <el-table-column
         :label="$t('form.accountingViewer.accountedCredit')"
-        :min-width="180"
+        :min-width="100"
         header-align="center"
       >
         <span slot-scope="scope" class="cell-align-right">
@@ -270,7 +271,9 @@ export default defineComponent({
     })
 
     const avaliableAccountingElements = getAvaliableAccountingElements()
-
+    function getColumnStyle() {
+      return 'padding: 0; height: 30px; border: none; '
+    }
     return {
       avaliableAccountingElements,
       DISPLAY_COLUMN_PREFIX,
@@ -280,8 +283,17 @@ export default defineComponent({
       isShowQuantityColumns,
       // Computeds
       isLoadingDataTable,
-      tableData
+      tableData,
+      //
+      getColumnStyle
     }
   }
 })
 </script>
+
+<style>
+.table-acct-viewer .el-table__cell {
+  padding: 0 !important;
+  line-height: 1 !important;
+}
+</style>

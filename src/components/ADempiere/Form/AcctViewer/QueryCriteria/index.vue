@@ -17,7 +17,7 @@
 -->
 
 <template>
-  <el-card class="box-card">
+  <el-card class="box-acct-viewer">
     <el-divider content-position="left">
       {{ $t('window.containerInfo.accountingInformation.selection') }}
     </el-divider>
@@ -94,3 +94,9 @@ export default defineComponent({
   }
 })
 </script>
+
+<style>
+.box-acct-viewer .el-divider--horizontal {
+  margin: 11px 0px !important
+}
+</style>
