@@ -54,7 +54,7 @@ along with this program. If not, see <https:www.gnu.org/licenses/>.
       :label="$t('form.pos.collect.seller')"
     />
     <el-table-column
-      prop="payment_method.name"
+      :prop="isDetails ? 'payment_method.name' : 'payment_method_name'"
       width="150"
       :label="$t('form.pos.collect.paymentMethod')"
     />

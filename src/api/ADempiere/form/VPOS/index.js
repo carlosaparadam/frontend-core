@@ -1347,7 +1347,7 @@ export function processCashClosing({
 /**
  * List Cash Summary
  */
-export function listCashSummaryMovements({
+export function listCashMovements({
   posId,
   isOnlyProcessed,
   isOnlyRefund
@@ -1366,7 +1366,7 @@ export function listCashSummaryMovements({
 /**
  * List all cash movements
  */
-export function listCashMovements({
+export function listCashSummaryMovements({
   posId,
   isOnlyProcessed,
   isOnlyRefund
