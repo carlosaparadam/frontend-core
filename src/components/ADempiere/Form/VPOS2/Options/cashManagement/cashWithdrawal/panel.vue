@@ -154,7 +154,7 @@ export default defineComponent({
   },
   setup() {
     const isLoadingPayment = ref(false)
-    const isAddAcount = ref(false)
+    const isAddAcount = ref(true)
 
     // Computed
 
