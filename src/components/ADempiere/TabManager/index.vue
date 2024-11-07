@@ -680,8 +680,20 @@ export default defineComponent({
       const { containerUuid } = currentTab
       const columnName = store.getters.getFieldFocusColumnName
       const currentFieldFocus = document.getElementById(`${columnName}`)
-      if (!isEmptyValue(currentFieldFocus)) {
-        currentFieldFocus.__vue__.blur()
+      if (
+        !isEmptyValue(currentFieldFocus) &&
+        !isEmptyValue(currentFieldFocus.__vue__)
+      ) {
+        if (
+          !isEmptyValue(currentFieldFocus.__vue__.customFocusLost)
+        ) {
+          currentFieldFocus.__vue__.customFocusLost()
+        }
+        if (
+          !isEmptyValue(currentFieldFocus.__vue__.blur)
+        ) {
+          currentFieldFocus.__vue__.blur()
+        }
       }
       store.dispatch('notifyFocusLost', {
         containerUuid,
