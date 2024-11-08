@@ -248,9 +248,10 @@ export default defineComponent({
       })
         .finally(() => {
           isLoadingPayment.value = false
-          store.commit('setCashOpeningPayments', {
-            attribute: 'amount',
-            value: 0
+          updateAmount(0)
+          store.commit('setAttributeCashOpenFields', {
+            attribute: 'cashBank',
+            value: undefined
           })
         })
     }
