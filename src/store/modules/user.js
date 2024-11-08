@@ -924,7 +924,9 @@ const actions = {
       .then((responseImage) => {
         if (responseImage.ok) {
           commit('setLogo', url)
+          return
         }
+        commit('setLogo', 'https://avatars1.githubusercontent.com/u/1263359?s=200&v=4')
       })
   },
   async searchImageUserOnServer({ commit, getters }, {
@@ -943,7 +945,9 @@ const actions = {
         .then((responseImage) => {
           if (responseImage.ok) {
             commit('setUserImage', url)
+            return
           }
+          commit('setUserImage', '')
         })
     } catch (error) {
       console.error('Error al validar la URL:', error)
