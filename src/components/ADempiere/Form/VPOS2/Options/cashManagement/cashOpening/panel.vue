@@ -75,7 +75,7 @@
           type="success"
           icon="el-icon-plus"
           class="button-base-icon"
-          :disabled="isLoadingPayment"
+          :disabled="disabledAddPay"
           :loading="isLoadingPayment"
           @click="addPayment"
         />
@@ -161,6 +161,19 @@ export default defineComponent({
     const amount = computed(() => {
       return store.getters.getAttributeCashOpenFields({
         attribute: 'amount'
+      })
+    })
+
+    const disabledAddPay = computed(() => {
+      if (isAddAcount.value) {
+        return isEmptyValue(cashBank.value) || isLoadingPayment.value
+      }
+      return isLoadingPayment.value
+    })
+
+    const cashBank = computed(() => {
+      return store.getters.getAttributeCashOpenFields({
+        attribute: 'cashBank'
       })
     })
 
@@ -269,8 +282,10 @@ export default defineComponent({
       isLoadingPayment,
       // Computed
       amount,
+      cashBank,
       description,
       amountDisplay,
+      disabledAddPay,
       currencyPayment,
       listPaymentsOpenst,
       // Methods
