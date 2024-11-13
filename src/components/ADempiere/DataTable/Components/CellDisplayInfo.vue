@@ -198,6 +198,9 @@ export default defineComponent({
       if (getTypeOfValue(currentValue) === 'OBJECT') {
         currentValue = currentValue.value
       }
+      if (props.fieldAttributes.is_encrypted) {
+        return '••••••••••••••••••'
+      }
       return formatField({
         value: currentValue,
         currency: props.dataRow[DISPLAY_COLUMN_PREFIX + CURRENCY],
