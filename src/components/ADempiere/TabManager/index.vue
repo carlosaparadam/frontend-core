@@ -616,6 +616,9 @@ export default defineComponent({
           containerUuid
         })
       }
+      const contextAttributes = store.getters.getTabData({
+        containerUuid: currentRoute.query.containerUuid
+      }).contextAttributes
       store.dispatch('getEntities', {
         parentUuid: props.parentUuid,
         tabUuid: routerParams.containerUuid,
@@ -623,7 +626,8 @@ export default defineComponent({
         filters,
         referenceUuid: query.referenceUuid,
         filtersRecord,
-        pageNumber
+        pageNumber,
+        contextAttributes
       }).then(responseData => {
         if (isCreateNew.value || isEmptyValue(responseData)) {
         // set values in panel
@@ -664,6 +668,7 @@ export default defineComponent({
         const recordId = currentRecordId.value
         setValuesPath({
           query: {
+            action: responseData.uuid,
             ...currentRoute.query,
             recordId
           },

@@ -176,6 +176,7 @@ export default defineComponent({
     /**
      * Const
      */
+
     const containerUuid = props.tabAttributes.uuid
 
     /**

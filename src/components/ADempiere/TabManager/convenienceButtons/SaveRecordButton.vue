@@ -40,13 +40,12 @@ import { computed, defineComponent, ref } from '@vue/composition-api'
 
 import store from '@/store'
 import language from '@/lang'
-import router from '@/router'
 
 // Constants
 import { LOG_COLUMNS_NAME_LIST } from '@/utils/ADempiere/constants/systemColumns'
 
 // Utils and Melper Methods
-import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
+import { isEmptyValue, setRecordPath } from '@/utils/ADempiere/valueUtils'
 import { showMessage } from '@/utils/ADempiere/notification'
 import { refreshRecord } from '@/utils/ADempiere/dictionary/window'
 
@@ -148,7 +147,6 @@ export default defineComponent({
       store.dispatch('fieldListInfo', { info })
       isSaveRecordLoading.value = true
 
-      const currentRoute = router.app._route
       store.dispatch('flushPersistenceQueue', {
         parentUuid: props.parentUuid,
         containerUuid: props.containerUuid,
@@ -158,12 +156,6 @@ export default defineComponent({
         recordId: recordId.value
       })
         .then(response => {
-          const {
-            name,
-            query,
-            params
-          } = currentRoute
-          const { id } = response
           // refresh parent tab on document window
           if (!tabAttributes.value.isParentTab) {
             const { firstTabUuid } = tabAttributes.value
@@ -178,19 +170,10 @@ export default defineComponent({
               })
             }
           }
-
-          router.replace({
-            name,
-            query: {
-              ...query,
-              recordId: id,
-              filters: []
-            },
-            params: {
-              ...params,
-              filters: []
-            }
-          }, () => {})
+          setRecordPath({
+            action: response.uuid,
+            recordId: response.id
+          })
         })
         .catch(error => {
           // console.error('Error saving record', error.message)
