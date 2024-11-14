@@ -38,7 +38,7 @@
             >
               <field-amount
                 :value-amount="amount"
-                :value-display="amount"
+                :value-display="amountDisplay"
                 :handle-change="updateAmount"
               />
             </el-form-item>
@@ -201,7 +201,7 @@ export default defineComponent({
     })
 
     const amountDisplay = computed(() => {
-      return formatPrice({ value: Number(amount), currency: currencyPayment.iso_code })
+      return formatPrice({ value: Number(amount.value), currency: currencyPayment.value.iso_code })
     })
 
     const listPaymentsOpenst = computed(() => {
