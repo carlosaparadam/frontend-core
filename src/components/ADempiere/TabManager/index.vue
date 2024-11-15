@@ -1049,16 +1049,20 @@ export default defineComponent({
       }
 
       store.dispatch('fieldListInfo', { info })
-
       const currentRoute = router.app._route
-
+      const recordUuid = store.getters.getUuidOfContainer(currentTab.containerUuid)
+      const currentReccord = store.getters.getTabCurrentRow({
+        containerUuid: currentTab.containerUuid
+      })
+      let recordId = -1
+      if (!isEmptyValue(currentReccord[currentTab.table_name + '_ID'])) recordId = currentReccord[currentTab.table_name + '_ID']
       store.dispatch('flushPersistenceQueue', {
         parentUuid: currentTab.parentUuid,
         containerUuid: currentTab.containerUuid,
         tabId: currentTab.internal_id,
         tableName: currentTab.table_name,
-        recordUuid: undefined,
-        recordId: -1
+        recordUuid,
+        recordId
       })
         .then(response => {
           const {
@@ -1066,7 +1070,8 @@ export default defineComponent({
             query,
             params
           } = currentRoute
-          const { id } = response
+          let id = query.recordId
+          if (!isEmptyValue(response)) id = response.id
           // refresh parent tab on document window
           if (!currentTab.isParentTab) {
             const { firstTabUuid } = currentTab
