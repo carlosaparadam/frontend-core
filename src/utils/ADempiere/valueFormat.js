@@ -74,8 +74,16 @@ export function formatField({
   if (isEmptyValue(value)) {
     return undefined
   }
+  let currentValue = value
+  // date and number is object { value, type }
+  if (getTypeOfValue(currentValue) === 'OBJECT' && Object.prototype.hasOwnProperty.call(currentValue, 'value')) {
+    currentValue = value.value
+  }
+  if (isEmptyValue(currentValue)) {
+    return undefined
+  }
   if (isEmptyValue(displayType)) {
-    return value
+    return currentValue
   }
   //  Format
   let formattedValue
@@ -93,17 +101,13 @@ export function formatField({
       formattedValue = displayedValue
       if (isEmptyValue(formattedValue)) {
         // set value
-        formattedValue = value
+        formattedValue = currentValue
       }
       break
 
     case DATE.id:
-      // date is object { value, type }
-      if (getTypeOfValue(value) === 'OBJECT' && Object.prototype.hasOwnProperty.call(value, 'value')) {
-        value = value.value
-      }
       formattedValue = formatDateTemp({
-        value,
+        value: currentValue,
         isTime: false,
         format: getDateFormat({
           format: optionalFormat,
@@ -114,23 +118,15 @@ export function formatField({
       break
 
     case DATE_PLUS_TIME.id:
-      // date is object { value, type }
-      if (getTypeOfValue(value) === 'OBJECT' && Object.prototype.hasOwnProperty.call(value, 'value')) {
-        value = value.value
-      }
       formattedValue = formatDateTemp({
-        value,
+        value: currentValue,
         isTime: true,
         format: optionalFormat || 'yyyy-MM-dd hh:mm:ss A'
       })
       break
     case TIME.id:
-      // date is object { value, type }
-      if (getTypeOfValue(value) === 'OBJECT' && Object.prototype.hasOwnProperty.call(value, 'value')) {
-        value = value.value
-      }
       formattedValue = formatDateTemp({
-        value,
+        value: currentValue,
         isTime: true,
         format: getDateFormat({
           format: optionalFormat,
@@ -142,45 +138,33 @@ export function formatField({
 
     case AMOUNT.id:
     case COSTS_PLUS_PRICES.id:
-      // number is object { value, type }
-      if (getTypeOfValue(value) === 'OBJECT' && Object.prototype.hasOwnProperty.call(value, 'value')) {
-        value = value.value
-      }
       formattedValue = formatPriceTemp({
-        value,
+        value: currentValue,
         currency
       })
       break
 
     case NUMBER.id:
-      // number is object { value, type }
-      if (getTypeOfValue(value) === 'OBJECT' && Object.prototype.hasOwnProperty.call(value, 'value')) {
-        value = value.value
-      }
       formattedValue = formatQuantity({
-        value,
+        value: currentValue,
         precision
       })
       break
     case QUANTITY.id:
-      // number is object { value, type }
-      if (getTypeOfValue(value) === 'OBJECT' && Object.prototype.hasOwnProperty.call(value, 'value')) {
-        value = value.value
-      }
       formattedValue = formatQuantity({
-        value
+        value: currentValue
       })
       break
 
     case YES_NO.id:
-      formattedValue = convertBooleanToTranslationLang(value)
+      formattedValue = convertBooleanToTranslationLang(currentValue)
       break
 
     case CHAR.id:
     case MEMO.id:
     case TEXT.id:
     case TEXT_LONG.id:
-      formattedValue = decodeHtmlEntities(value)
+      formattedValue = decodeHtmlEntities(currentValue)
       break
 
     case IMAGE.id:
@@ -192,7 +176,7 @@ export function formatField({
       break
 
     default:
-      formattedValue = value
+      formattedValue = currentValue
   }
   return formattedValue
 }

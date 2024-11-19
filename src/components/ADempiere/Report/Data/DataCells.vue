@@ -88,9 +88,9 @@ import InfoReport from '@/views/ADempiere/ReportViewerEngine/infoReport.vue'
 
 // Utils and Helper Methods
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
-import { isLookup } from '@/utils/ADempiere/references'
 import { zoomIn } from '@/utils/ADempiere/coreUtils.js'
 import { isSalesTransaction } from '@/utils/ADempiere/contextUtils'
+import { formatField } from '@/utils/ADempiere/valueFormat.js'
 
 // API Request Methods
 import { listZoomWindowsRequest } from '@/api/ADempiere/fields/zoom.js'
@@ -221,15 +221,12 @@ export default defineComponent({
       const rowData = row.cells[field.code]
       if (!isEmptyValue(rowData)) {
         const { display_value, value: currentValue } = rowData
-        if (!isEmptyValue(display_value) || isLookup(field.display_type)) {
-          return display_value
-        }
-        if (!isEmptyValue(currentValue)) {
-          if (!isEmptyValue(currentValue.value)) {
-            return currentValue.value
-          }
-          return currentValue
-        }
+        return formatField({
+          value: currentValue,
+          displayedValue: display_value,
+          displayType: field.display_type,
+          columnName: field.column_name
+        })
       }
     }
 

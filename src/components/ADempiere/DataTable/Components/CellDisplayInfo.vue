@@ -134,7 +134,7 @@ import FieldDefinition from '@/components/ADempiere/FieldDefinition/index.vue'
 import ProgressPercentage from '@/components/ADempiere/ContainerOptions/ProgressPercentage.vue'
 
 // Utils and helpers Methods
-import { isEmptyValue, getTypeOfValue } from '@/utils/ADempiere/valueUtils.js'
+import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 import { copyToClipboard } from '@/utils/ADempiere/coreUtils.js'
 import { formatField } from '@/utils/ADempiere/valueFormat.js'
 import { getImagePath } from '@/utils/ADempiere/resource'
@@ -194,13 +194,10 @@ export default defineComponent({
     })
 
     const displayedValue = computed(() => {
-      let currentValue = props.dataRow[columnName.value]
-      if (getTypeOfValue(currentValue) === 'OBJECT') {
-        currentValue = currentValue.value
-      }
       if (props.fieldAttributes.is_encrypted) {
         return '••••••••••••••••••'
       }
+      const currentValue = props.dataRow[columnName.value]
       return formatField({
         value: currentValue,
         currency: props.dataRow[DISPLAY_COLUMN_PREFIX + CURRENCY],
