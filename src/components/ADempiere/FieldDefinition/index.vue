@@ -404,7 +404,7 @@ export default {
     },
     styleDraggable() {
       if (this.field.componentPath === 'FieldButton') {
-        return 'text-align: center !important;'
+        return 'text-align: center !important;width: max-content;'
       }
       if (!this.isDraggable) {
         return ''

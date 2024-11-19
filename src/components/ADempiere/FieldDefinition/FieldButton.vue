@@ -398,3 +398,30 @@ export default {
   }
 }
 </script>
+
+<style lang="scss">
+  .custom-field-text {
+    max-height: 36px;
+  }
+  .el-input.is-disabled .el-input__inner {
+    background-color: #dfe5f078;
+    border-color: #dfe4ed;
+    color: #76797e;
+    cursor: not-allowed;
+    font-weight: 630;
+  }
+
+  // indicates if the textarea is adjustable
+  .el-textarea__inner {
+    &.field-in-table {
+      resize: none !important;
+    }
+  }
+
+  // does not superimpose the character counter on the input text
+  .el-textarea {
+    >.el-input__count {
+      line-height: 10px;
+    }
+  }
+</style>

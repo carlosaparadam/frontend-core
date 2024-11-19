@@ -301,7 +301,7 @@ export default defineComponent({
       }
       return {
         height: '100% !important',
-        overflow: 'auto'
+        overflow: 'hidden'
       }
     })
 
@@ -596,6 +596,8 @@ export default defineComponent({
           value: query.action
         }
       }
+
+      console.log({ query, routerParams, currentRoute })
 
       const { keyColumn } = store.getters.getStoredTab(props.parentUuid, containerUuid)
       if (!isEmptyValue(query.recordId)) {
