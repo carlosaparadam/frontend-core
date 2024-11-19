@@ -22,10 +22,9 @@ import language from '@/lang'
 // Constants
 import { OPERATOR_IN } from '@/utils/ADempiere/dataUtils.js'
 import { EXPORT_SUPPORTED_TYPES } from '@/utils/ADempiere/exportUtil.js'
-import { BUTTON } from '@/utils/ADempiere/references.js'
 
 // Utils and Helpers Methods
-import { showNotification } from '@/utils/ADempiere/notification.js'
+import { showMessage, showNotification } from '@/utils/ADempiere/notification.js'
 import { zoomIn } from '@/utils/ADempiere/coreUtils.js'
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 import { exportFileFromJson } from '@/utils/ADempiere/exportUtil.js'
@@ -73,7 +72,12 @@ export const exportAllRecords = {
   svg: false,
   icon: 'el-icon-download',
   actionName: 'exportAllRecords',
-  exportAllRecords: () => null,
+  exportAllRecords: () => {
+    showMessage({
+      type: 'info',
+      message: language.t('smartBrowser.exportAllRecords.withoutExtension')
+    })
+  },
   // generate export formats
   childs: Object.keys(EXPORT_SUPPORTED_TYPES).map(format => {
     return {
@@ -97,14 +101,10 @@ export const exportAllRecords = {
           const fieldsListAvailable = fieldsList.filter(fieldItem => {
             const {
               isShowedTableFromUser,
-              display_type, is_encrypted
+              is_encrypted
             } = fieldItem
             // Hide encrypted fields
             if (is_encrypted) {
-              return false
-            }
-            // Hide simple button fields without a value
-            if (display_type === BUTTON.id) { // && fieldItem.referenceValue === 0) {
               return false
             }
 
