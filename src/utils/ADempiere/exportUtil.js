@@ -1,28 +1,42 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Elsio Sanchez esanchez@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+import language from '@/lang'
 
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// Constants
+import { BUTTON } from '@/utils/ADempiere/references.js'
 
 // utils and helper methods
+import { convertBooleanToTranslationLang } from '@/utils/ADempiere/formatValue/booleanFormat.js'
+import { clientDateTime } from '@/utils/ADempiere/formatValue/dateFormat'
+import { decodeHtmlEntities } from '@/utils/ADempiere/formatValue/stringFormat'
 import { export_json_to_excel } from '@/vendor/Export2Excel'
 import { export_txt_to_zip } from '@/vendor/Export2Zip'
-import language from '@/lang'
-import { convertBooleanToTranslationLang } from '@/utils/ADempiere/formatValue/booleanFormat.js'
-import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
+import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
+import { formatField } from '@/utils/ADempiere/valueFormat'
+
+/**
+ * Default extension/format to export records
+ */
+export const DEFAULT_EXPORT_TYPE = 'csv'
 
 // export file with records
-export const supportedTypes = {
+export const EXPORT_SUPPORTED_TYPES = {
   csv: language.t('extensionFile.csv'),
   html: language.t('extensionFile.html'),
   json: language.t('extensionFile.json'),
@@ -150,4 +164,79 @@ export function exportZipFile({
     txtName,
     zipName
   )
+}
+
+/**
+ * Export records
+ * @param {string} parentUuid
+ * @param {string} containerUuid
+ * @param {object} containerManager
+ * @param {string} formatToExport
+ * @param {array} selection
+ * @param {object} currrentRecord
+ */
+export const exportRecords = ({ parentUuid, containerUuid, containerManager, formatToExport = DEFAULT_EXPORT_TYPE, selection = [], currrentRecord = { }}) => {
+  let currentSelection = [currrentRecord]
+  if (isEmptyValue(currrentRecord)) {
+    currentSelection = containerManager.getSelection({
+      containerUuid
+    })
+  }
+  if (!isEmptyValue(selection)) {
+    currentSelection = selection
+  }
+
+  const fieldsList = containerManager.getFieldsList({
+    parentUuid,
+    containerUuid
+  })
+  const fieldsListAvailable = fieldsList.filter(fieldItem => {
+    const {
+      display_type
+    } = fieldItem
+    if (containerManager.isDisplayedColumn(fieldItem)) {
+      const isMandatoryGenerated = containerManager.isMandatoryColumn(fieldItem)
+      const isDisplayedDefault = containerManager.isDisplayedDefaultTable({
+        ...fieldItem,
+        isMandatory: isMandatoryGenerated
+      })
+      if (isDisplayedDefault) {
+        return true
+      }
+      return fieldItem.isShowedTableFromUser
+    }
+    if (display_type === BUTTON.id) { // && fieldItem.referenceValue === 0) {
+      return false
+    }
+    return false
+  }).sort((a, b) => a.sequence - b.sequence)
+  const headerList = fieldsListAvailable.map(fieldItem => {
+    // decode html entities
+    return decodeHtmlEntities(fieldItem.name)
+  })
+  // filter only showed columns
+  const data = currentSelection.map(row => {
+    const newRow = {}
+    fieldsListAvailable.forEach(field => {
+      const { column_name, displayColumnName, display_type } = field
+      const value = formatField({
+        displayType: display_type,
+        value: row[column_name],
+        displayedValue: row[displayColumnName]
+      })
+      newRow[column_name] = value
+    })
+    return newRow
+  })
+
+  const title = containerManager.getPanel({
+    parentUuid,
+    containerUuid
+  }).name
+  exportFileFromJson({
+    header: headerList,
+    data,
+    fileName: `${title} ${clientDateTime()}`,
+    exportType: formatToExport
+  })
 }

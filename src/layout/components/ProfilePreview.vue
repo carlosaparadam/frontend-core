@@ -1,29 +1,41 @@
 <template>
   <div class="user-profi">
-    <router-link to="/profile/index">
-      <el-row>
-        <el-col :span="24" style="text-align: center;">
-          <el-avatar shape="circle" :size="100" fit="fill" :src="avatarResize" />
-          <br>
-          <b> {{ userName }} </b>
-          <br>
-          <el-button round style="margin-top: 3%;"> {{ currentRole.name }} </el-button>
-        </el-col>
-      </el-row>
-    </router-link>
+    <el-row>
+      <el-col :span="24" style="text-align: center;">
+        <el-image
+          :src="imageURL"
+          crossorigin="anonymous"
+          fit="scale-down"
+          class="circle-image"
+        />
+      </el-col>
+    </el-row>
     <roles-navbar />
   </div>
 </template>
 
 <script>
-import RolesNavbar from '@/views/profile/components/RolesNavbar'
-import { getImagePath } from '@/utils/ADempiere/resource.js'
+import { defineComponent, computed, ref } from '@vue/composition-api'
 
-export default {
+import router from '@/router'
+import store from '@/store'
+
+// Components and Mixins
+import RolesNavbar from '@/views/profile/components/RolesNavbar'
+
+// Utils and Helper Methods
+import { pathImageWindows } from '@/utils/ADempiere/resource'
+
+// Constants
+// import { COLUMN_NAME, TABLE_NAME_USER } from '@/utils/ADempiere/constants/resoucer.ts'
+
+export default defineComponent({
   name: 'ProfilePreview',
+
   components: {
     RolesNavbar
   },
+
   props: {
     user: {
       type: Object,
@@ -44,34 +56,71 @@ export default {
       default: () => ['fill', 'contain', 'cover', 'none', 'scale-down']
     }
   },
-  computed: {
-    userInfo() {
-      return this.$store.getters['user/userInfo']
-    },
-    userName() {
-      if (this.isEmptyValue(this.userInfo)) {
-        return ''
-      }
-      return this.userInfo.name
-    },
-    currentRole() {
-      return this.$store.getters['user/getRole']
-    },
-    avatarResize() {
-      if (this.isEmptyValue(this.userInfo.image)) {
-        return require('@/image/ADempiere/avatar/no-avatar.png')
-      }
+  setup() {
+    const isLoaded = ref(false)
+    // Computed
+    const userInfo = computed(() => {
+      return store.getters['user/userInfo']
+    })
 
-      const { uri } = getImagePath({
-        file: this.userInfo.image,
-        width: 40,
-        height: 40
-      })
+    // const userAvatar = computed(() => {
+    //   return store.getters['user/getUserAvatar']
+    // })
 
-      return uri
+    const userName = computed(() => {
+      if (userInfo.value) return userInfo.value.name
+      return ''
+    })
+
+    const currentRole = computed(() => {
+      return store.getters['user/getRole']
+    })
+
+    const imageDefault = computed(() => {
+      return require('@/image/ADempiere/avatar/no-avatar.png')
+    })
+
+    const userAvatar = computed(() => {
+      return store.getters['user/getUserAvatar']
+    })
+
+    const clientId = computed(() => {
+      const { client_uuid } = userInfo.value
+      return client_uuid
+    })
+
+    const imageURL = computed(() => {
+      return store.getters['user/getUserUrl']
+    })
+
+    const avatarResize = ref('')
+
+    avatarResize.value = require('@/image/ADempiere/avatar/no-avatar.png')
+
+    function handleClick() {
+      router.push({
+        name: 'Profile'
+      }, () => {})
+    }
+
+    return {
+      // Ref
+      isLoaded,
+      avatarResize,
+      // Computed
+      userInfo,
+      clientId,
+      imageURL,
+      userName,
+      userAvatar,
+      currentRole,
+      imageDefault,
+      // Methods
+      handleClick,
+      pathImageWindows
     }
   }
-}
+})
 </script>
 
 <style lang="scss" scoped>
@@ -131,5 +180,16 @@ export default {
       font-weight: bold;
     }
   }
+}
+</style>
+<style>
+.circle-image {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  display: inline-block;
+  position: relative;
+  cursor: default;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 </style>

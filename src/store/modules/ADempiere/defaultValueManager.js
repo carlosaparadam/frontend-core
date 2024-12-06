@@ -1,28 +1,35 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import Vue from 'vue'
 
-// api request methods
-import { requestDefaultValue } from '@/api/ADempiere/user-interface/persistence.js'
-import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
+// API Request Methods
+import { requestDefaultValue } from '@/api/ADempiere/fields/defaultValue.ts'
 
-// utils and helper methods
+// Constants
+import {
+  DISPLAY_COLUMN_PREFIX, UNIVERSALLY_UNIQUE_IDENTIFIER_COLUMN_SUFFIX
+} from '@/utils/ADempiere/dictionaryUtils'
+
+// Utils and Helper Methods
+import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 import { isSameSize } from '@/utils/ADempiere/formatValue/iterableFormat'
-import { generateContextKey, getContextAttributes } from '@/utils/ADempiere/contextUtils'
+import { generateContextKey, getContextAttributes } from '@/utils/ADempiere/contextUtils/contextAttributes'
 
 const initState = {
   inRequest: new Map(),
@@ -33,13 +40,15 @@ const defaultValueManager = {
   state: initState,
 
   mutations: {
-    setDefaultValue(state, { key, clientId, contextAttributesList, uuid, displayedValue, value }) {
+    setDefaultValue(state, { key, clientId, contextAttributesList, uuid, value, displayedValue, isActive, reason }) {
       Vue.set(state.storedDefaultValue, key, {
         clientId,
         contextAttributesList,
         uuid,
+        value,
         displayedValue,
-        value
+        isActive,
+        reason
       })
     },
 
@@ -69,7 +78,10 @@ const defaultValueManager = {
       contextColumnNames,
       //
       id,
+      uuid,
       fieldUuid,
+      browseFieldId,
+      processParameterId,
       processParameterUuid,
       browseFieldUuid,
       columnUuid,
@@ -82,8 +94,11 @@ const defaultValueManager = {
         value: undefined
       }
       return new Promise(resolve => {
-        if (isEmptyValue(id) && isEmptyValue(fieldUuid) && isEmptyValue(processParameterUuid) && isEmptyValue(browseFieldUuid)) {
-          resolve(defaultEmptyResponse)
+        if (isEmptyValue(id) && isEmptyValue(uuid) && isEmptyValue(processParameterId) && isEmptyValue(browseFieldId)) {
+          resolve({
+            ...defaultEmptyResponse,
+            reason: 'Without identifier'
+          })
           return
         }
 
@@ -91,24 +106,33 @@ const defaultValueManager = {
           parentUuid,
           containerUuid,
           contextColumnNames,
-          isBooleanToString: true
+          isBooleanToString: true,
+          format: 'object'
         })
+
         // fill context value to continue
-        if (!isSameSize(contextColumnNames, contextAttributesList)) {
-          resolve(defaultEmptyResponse)
+        if (!isSameSize(contextColumnNames, Object.values(contextAttributesList))) {
+          resolve({
+            ...defaultEmptyResponse,
+            reason: 'Without context'
+          })
           return
         }
 
-        const isWithoutValues = contextAttributesList.find(attribute => isEmptyValue(attribute.value))
-        if (isWithoutValues) {
-          console.warn(`Without response, fill the ${isWithoutValues.columnName} field.`)
-          resolve(defaultEmptyResponse)
-          return
-        }
+        // const isWithoutValues = contextAttributesList.find(attribute => isEmptyValue(attribute.value))
+        // if (isWithoutValues) {
+        //   console.warn(`Default value without response, fill the ${isWithoutValues.columnName} field.`)
+        //   resolve(defaultEmptyResponse)
+        //   return
+        // }
 
         const clientId = rootGetters.getSessionContextClientId
 
         let key = clientId
+        // TODO: generate with your fieldUuid, processParameterUuid, browseFieldUuid
+        // if (!isEmptyValue(uuid)) {
+        //   key += `|${uuid}`
+        // }
         if (!isEmptyValue(fieldUuid)) {
           key += `|${fieldUuid}`
         } else if (!isEmptyValue(processParameterUuid)) {
@@ -119,47 +143,64 @@ const defaultValueManager = {
 
         const contextKey = generateContextKey(contextAttributesList)
         key += contextKey
+        key += `|${value}`
 
         // if it is the same request, it is not made
         if (state.inRequest.get(key)) {
-          resolve(defaultEmptyResponse)
+          resolve({
+            ...defaultEmptyResponse,
+            reason: 'In Request'
+          })
           return
         }
         state.inRequest.set(key, true)
 
+        let contextAttributes
+        if (!isEmptyValue(contextAttributesList)) {
+          contextAttributes = JSON.stringify(contextAttributesList)
+        }
+
         requestDefaultValue({
-          contextAttributesList,
+          contextAttributes,
           id,
-          fieldUuid,
-          processParameterUuid,
-          browseFieldUuid,
-          columnUuid,
+          browseFieldId,
+          processParameterId,
           value
         })
           .then(valueResponse => {
-            const values = {}
+            const { values, is_active } = valueResponse
+            // const values = {
+            //   KeyColumn: undefined,
+            //   DisplayColumn: undefined,
+            //   UUID: undefined
+            // }
 
-            // TODO: Response from server same name key of value
-            if (valueResponse.attributes.length === 1) {
-              values.KeyColumn = valueResponse.attributes[0].value
-              values.DisplayColumn = undefined
-            } else {
-              valueResponse.attributes.forEach(attribute => {
-                const { key: column, value } = attribute
-                values[column] = value
-              })
+            let valueOfServer = values.KeyColumn
+            // do not use the convertArrayKeyValueToObject method to avoid losing a key with an empty value
+            if (isEmptyValue(valueOfServer) && Object.keys(values).length === 1) {
+              // number values (`Line` for example)
+              valueOfServer = values[columnName]
             }
-            const valueOfServer = values.KeyColumn
-            const displayedValue = values.DisplayColumn
+            // } else {
+            //   valueResponse.attributes.forEach(attribute => {
+            //     const { key: column, value: attributeValue } = attribute
+            //     values[column] = attributeValue
+            //   })
+            // }
+
+            const displayValue = values.DisplayColumn
 
             commit('setDefaultValue', {
               key,
               clientId,
               contextAttributesList,
-              id,
-              displayedValue,
-              value,
-              uuid: values.uuid
+              id, // field id
+              uuid: values.UUID, // record uuid
+              // set value of server to parsed if is number as string "101" -> 101
+              value: valueOfServer,
+              displayedValue: displayValue,
+              isActive: is_active,
+              reason: 'Successful default value'
             })
 
             commit('updateValueOfField', {
@@ -168,22 +209,56 @@ const defaultValueManager = {
               columnName,
               value: valueOfServer
             })
-            if (!isEmptyValue(values.DisplayColumn)) {
+            if (!isEmptyValue(displayValue)) {
               commit('updateValueOfField', {
                 parentUuid,
                 containerUuid,
-                columnName: `DisplayColumn_${columnName}`,
-                value: displayedValue
+                columnName: DISPLAY_COLUMN_PREFIX + columnName,
+                value: displayValue
+              })
+            }
+            if (!isEmptyValue(values.UUID)) {
+              commit('updateValueOfField', {
+                parentUuid,
+                containerUuid,
+                columnName: columnName + UNIVERSALLY_UNIQUE_IDENTIFIER_COLUMN_SUFFIX,
+                value: values.UUID
               })
             }
 
             resolve({
-              displayedValue,
+              displayedValue: displayValue,
               value: valueOfServer,
-              uuid: values.uuid
+              uuid: values.UUID,
+              isActive: is_active,
+              reason: 'Successful default value'
             })
           })
           .catch(error => {
+            // clear default value if error
+            commit('updateValueOfField', {
+              parentUuid,
+              containerUuid,
+              columnName,
+              value: undefined
+            })
+            commit('updateValueOfField', {
+              parentUuid,
+              containerUuid,
+              columnName: DISPLAY_COLUMN_PREFIX + columnName,
+              value: undefined
+            })
+            commit('updateValueOfField', {
+              parentUuid,
+              containerUuid,
+              columnName: columnName + UNIVERSALLY_UNIQUE_IDENTIFIER_COLUMN_SUFFIX,
+              value: undefined
+            })
+
+            resolve({
+              ...defaultEmptyResponse,
+              reason: 'Error request default value'
+            })
             console.warn(`Error getting default value (${columnName}) from server. Error code ${error.code}: ${error.message}.`)
           })
           .finally(() => {
@@ -231,6 +306,7 @@ const defaultValueManager = {
       containerUuid,
       contextColumnNames = [],
       contextAttributesList = [],
+      value,
       uuid
     }) => {
       if (isEmptyValue(contextAttributesList) && !isEmptyValue(contextColumnNames)) {
@@ -246,6 +322,7 @@ const defaultValueManager = {
       let key = `${clientId}|${uuid}`
       const contextKey = generateContextKey(contextAttributesList)
       key += contextKey
+      key += `|${value}`
 
       const values = state.storedDefaultValue[key]
 

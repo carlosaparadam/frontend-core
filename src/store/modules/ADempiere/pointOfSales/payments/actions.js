@@ -1,21 +1,25 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Elsio Sanchez esanchez@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Elsio Sanchez elsiosanchez15@outlook.com https://github.com/elsiosanchez
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+import lang from '@/lang'
 
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+// API Request Methods
 import {
-  requestGetConversionRate,
   createPayment,
   deletePayment,
   updatePayment,
@@ -25,10 +29,17 @@ import {
   listCustomerBankAccounts,
   // Cash Summary Movements
   cashSummaryMovements,
+  listCashMovements,
   RefundReferenceRequest,
   listRefundReference,
   deleteRefundReference
 } from '@/api/ADempiere/form/point-of-sales.js'
+import {
+  getConversionRateRequest
+} from '@/api/ADempiere/system-core'
+
+// Utils and Helper Methods
+import { formatDate } from '@/utils/ADempiere/formatValue/dateFormat'
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 import { showMessage } from '@/utils/ADempiere/notification.js'
 
@@ -82,12 +93,15 @@ export default {
     }
   },
   // upload orders to theServer
-  uploadOrdersToServer({ dispatch }, {
+  uploadOrdersToServer({ dispatch, rootGetters }, {
     listPaymentsLocal,
     posUuid,
-    orderUuid
+    orderUuid,
+    invoiceReferenceId
   }) {
     listPaymentsLocal.forEach(payment => {
+      const isProcessLoading = rootGetters.getProcessLoading
+      if (isProcessLoading) return
       createPayment({
         posUuid,
         orderUuid,
@@ -98,7 +112,9 @@ export default {
         paymentDate: payment.paymentDate,
         tenderTypeCode: payment.tenderTypeCode,
         isRefund: false,
+        invoiceReferenceId,
         currencyUuid: payment.currencyUuid
+
       })
         .then(response => {
           const orderUuid = response.orderUuid
@@ -123,34 +139,67 @@ export default {
     const payment = state.paymentBox
     payment.splice(0)
   },
-  searchConversion({ commit }, params) {
-    return requestGetConversionRate({
+  searchConversion({ commit, getters, rootGetters }, params) {
+    const posUuid = isEmptyValue(params.currentPOS) ? rootGetters.posAttributes.currentPointOfSales.uuid : params.currentPOS.uuid
+    if (isEmptyValue(params.currencyToUuid)) {
+      return
+    }
+    // TODO: Change by UUID to ID
+    return getConversionRateRequest({
+      posUuid,
       conversionTypeUuid: params.conversionTypeUuid,
       currencyFromUuid: params.currencyFromUuid,
       currencyToUuid: params.currencyToUuid,
       conversionDate: params.conversionDate
     })
       .then(response => {
+        if (isEmptyValue(response) || response.id <= 0) {
+          let conversionDate = params.conversionDate
+          if (isEmptyValue(conversionDate)) {
+            conversionDate = formatDate(new Date())
+          }
+        }
+
         commit('addConversionToList', response)
         return response
       })
       .catch(error => {
         console.warn(`conversionDivideRate: ${error.message}. Code: ${error.code}.`)
-        showMessage({
-          type: 'error',
-          message: error.message,
-          showClose: true
-        })
       })
   },
-  conversionDivideRate({ commit, dispatch }, params) {
-    return requestGetConversionRate({
+  conversionDivideRate({ commit, dispatch, getters, rootGetters }, params) {
+    const posUuid = isEmptyValue(params.currentPOS) ? rootGetters.posAttributes.currentPointOfSales.uuid : params.currentPOS.uuid
+    // TODO: Change by UUID to ID
+    return getConversionRateRequest({
+      posUuid,
       conversionTypeUuid: params.conversionTypeUuid,
       currencyFromUuid: params.currencyFromUuid,
       currencyToUuid: params.currencyToUuid,
       conversionDate: params.conversionDate
     })
       .then(response => {
+        if (isEmptyValue(response) || response.id <= 0) {
+          let conversionDate = params.conversionDate
+          if (isEmptyValue(conversionDate)) {
+            conversionDate = formatDate(new Date())
+          }
+          const currencyFrom = getters.getCurrenciesList.find(currency => {
+            return currency.uuid === params.currencyFromUuid
+          })
+          const currencyTo = getters.getCurrenciesList.find(currency => {
+            return currency.uuid === params.currencyToUuid
+          })
+
+          showMessage({
+            type: 'warning',
+            message: lang.t('pointOfSales.conversionRate.withoutConversionRate') + conversionDate + ', ' +
+              currencyFrom.currency_symbol + ' => ' + currencyTo.currency_symbol
+          })
+          console.warn(
+            lang.t('pointOfSales.conversionRate.withoutConversionRate') + conversionDate + ', ' +
+            currencyFrom.currency_symbol + ' => ' + currencyTo.currency_symbol
+          )
+        }
         commit('setFieldCurrency', response.currencyTo)
         if (!isEmptyValue(response.currencyTo)) {
           const currency = {
@@ -201,10 +250,14 @@ export default {
     paymentDate,
     tenderTypeCode,
     paymentMethodUuid,
-    currencyUuid
+    customerBankAccountUuid,
+    currencyUuid,
+    invoiceReferenceId
   }) {
+    const isProcessLoading = getters.getProcessLoading
+    if (isProcessLoading) return
     const listPayments = getters.getListPayments.payments.find(payment => {
-      if ((payment.paymentMethodUuid === paymentMethodUuid) && (payment.tenderTypeCode === 'X') && (currencyUuid === payment.currencyUuid)) {
+      if ((payment.paymentMethod.uuid === paymentMethodUuid) && (payment.tenderTypeCode === 'X') && (currencyUuid === payment.currency.uuid)) {
         return payment
       }
       return undefined
@@ -222,7 +275,9 @@ export default {
         paymentDate,
         tenderTypeCode,
         paymentMethodUuid,
+        customerBankAccountUuid,
         isRefund: false,
+        invoiceReferenceId,
         currencyUuid
       })
         .then(response => {
@@ -248,6 +303,7 @@ export default {
         })
     } else {
       return updatePayment({
+        posUuid,
         paymentUuid: listPayments.uuid,
         bankUuid,
         referenceNo,
@@ -286,6 +342,7 @@ export default {
     paymentUuid
   }) {
     deletePayment({
+      posUuid,
       paymentUuid
     })
       .then(response => {
@@ -374,7 +431,7 @@ export default {
       currencyUuid
     })
   },
-  sendCreateCustomerAccount({ commit, dispatch }, {
+  sendCreateCustomerAccount({ commit, dispatch, getters }, {
     customerAccount,
     posUuid,
     orderUuid,
@@ -386,42 +443,85 @@ export default {
     convertedAmount,
     paymentDate,
     tenderTypeCode,
+    customerBankAccountUuid,
     paymentMethodUuid,
     currencyUuid
   }) {
-    return createPayment({
-      customerAccount,
-      posUuid,
-      orderUuid,
-      invoiceUuid,
-      bankUuid,
-      referenceNo,
-      description,
-      amount,
-      convertedAmount,
-      paymentDate,
-      tenderTypeCode,
-      paymentMethodUuid,
-      currencyUuid,
-      isRefund: true
+    const listPayments = getters.getListPayments.payments.find(payment => {
+      if (payment.isRefund && (payment.paymentMethod.uuid === paymentMethodUuid) && (payment.tenderTypeCode === 'X') && (currencyUuid === payment.currency.uuid)) {
+        return payment
+      }
+      return undefined
     })
-      .then(response => {
-        const orderUuid = response.orderUuid
-        dispatch('listPayments', { posUuid, orderUuid })
-        return {
-          ...response,
-          type: 'success'
-        }
+    if (isEmptyValue(listPayments)) {
+      return createPayment({
+        customerAccount,
+        posUuid,
+        orderUuid,
+        invoiceUuid,
+        bankUuid,
+        referenceNo,
+        description,
+        amount,
+        convertedAmount,
+        paymentDate,
+        tenderTypeCode,
+        paymentMethodUuid,
+        currencyUuid,
+        customerBankAccountUuid,
+        isRefund: true
       })
-      .catch(error => {
-        console.warn(`ListPaymentsFromServer: ${error.message}. Code: ${error.code}.`)
-        showMessage({
-          type: 'error',
-          message: error.message,
-          showClose: true
+        .then(response => {
+          const orderUuid = response.orderUuid
+          dispatch('listPayments', { posUuid, orderUuid })
+          return {
+            ...response,
+            type: 'success'
+          }
         })
-        return { type: 'error' }
+        .catch(error => {
+          console.warn(`ListPaymentsFromServer: ${error.message}. Code: ${error.code}.`)
+          showMessage({
+            type: 'error',
+            message: error.message,
+            showClose: true
+          })
+          return { type: 'error' }
+        })
+    } else {
+      return updatePayment({
+        posUuid,
+        paymentUuid: listPayments.uuid,
+        bankUuid,
+        referenceNo,
+        description,
+        amount: listPayments.amount + amount,
+        paymentDate,
+        paymentMethodUuid,
+        tenderTypeCode
       })
+        .then(response => {
+          const orderUuid = response.order_uuid
+          dispatch('listPayments', { posUuid, orderUuid })
+          dispatch('reloadOrder', { posUuid, orderUuid })
+          return {
+            ...response,
+            type: 'Success'
+          }
+        })
+        .catch(error => {
+          console.warn(`ListPaymentsFromServer: ${error.message}. Code: ${error.code}.`)
+          showMessage({
+            type: 'error',
+            message: error.message,
+            showClose: true
+          })
+          return {
+            ...error,
+            type: 'error'
+          }
+        })
+    }
   },
   /**
   * Refund payment at a later time
@@ -456,7 +556,7 @@ export default {
     state,
     street,
     zip,
-    bankAccountType,
+    bankAccountType = 'C',
     bankUuid,
     paymentMethodUuid,
     isAch,
@@ -466,47 +566,52 @@ export default {
     AccountNo,
     iban
   }) {
-    return createCustomerBankAccount({
-      customerUuid,
-      posUuid,
-      city,
-      country,
-      email,
-      driverLicense,
-      socialSecurityNumber,
-      name,
-      state,
-      street,
-      zip,
-      bankAccountType,
-      paymentMethodUuid,
-      bankUuid,
-      isAch,
-      AccountNo,
-      addressVerified,
-      zipVerified,
-      routingNo,
-      iban
-    })
-      .then(response => {
-        commit('setCurrentCustomerBankAccount', response)
-        dispatch('listCustomerBankAccounts', { customerUuid: response.customerUuid })
-        return response
+    return new Promise(resolve => {
+      createCustomerBankAccount({
+        customerUuid,
+        posUuid,
+        city,
+        country,
+        email,
+        driverLicense,
+        socialSecurityNumber,
+        name,
+        state,
+        street,
+        zip,
+        bankAccountType,
+        paymentMethodUuid,
+        bankUuid,
+        isAch,
+        AccountNo,
+        addressVerified,
+        zipVerified,
+        routingNo,
+        iban
       })
-      .catch(error => {
-        console.warn(`conversionDivideRate: ${error.message}. Code: ${error.code}.`)
-        showMessage({
-          type: 'error',
-          message: error.message,
-          showClose: true
+        .then(response => {
+          commit('setCurrentCustomerBankAccount', response)
+          dispatch('listCustomerBankAccounts', { customerUuid: response.customerUuid })
+          resolve(response)
         })
-      })
+        .catch(error => {
+          console.warn(`conversionDivideRate: ${error.message}. Code: ${error.code}.`)
+          showMessage({
+            type: 'error',
+            message: error.message,
+            showClose: true
+          })
+          resolve({})
+        })
+    })
   },
   listCustomerBankAccounts({ commit, dispatch }, {
+    posUuid,
     customerUuid,
     pageToken
   }) {
     listCustomerBankAccounts({
+      posUuid,
       customerUuid,
       pageToken
     })
@@ -576,6 +681,7 @@ export default {
     uuid
   }) {
     deleteRefundReference({
+      posUuid,
       uuid
     })
       .then(response => {
@@ -625,6 +731,52 @@ export default {
     })
       .then(response => {
         commit('setListCashSummary', response)
+      })
+      .catch(error => {
+        this.$message({
+          message: error.message,
+          isShowClose: true,
+          type: 'error'
+        })
+        commit('setListCashSummary', [])
+        console.warn(`Error: ${error.message}. Code: ${error.code}.`)
+      })
+  },
+  listCashMovementsSummary({ commit, state, rootGetters }, {
+    posUuid,
+    customerUuid,
+    salesRepresentativeUuid
+  }) {
+    if (isEmptyValue(posUuid)) {
+      posUuid = rootGetters.posAttributes.currentPointOfSales.uuid
+    }
+    listCashMovements({
+      posUuid,
+      customerUuid,
+      salesRepresentativeUuid
+    })
+      .then(response => {
+        const records = response.records.map(list => {
+          return {
+            ...list,
+            payment_method_name: list.payment_method.name
+          }
+        })
+        commit('setListCashSummaryMovements', {
+          ...response,
+          records
+        })
+      })
+      .catch(error => {
+        this.$message({
+          message: error.message,
+          isShowClose: true,
+          type: 'error'
+        })
+        commit('setListCashSummaryMovements', {
+          records: []
+        })
+        console.warn(`Error: ${error.message}. Code: ${error.code}.`)
       })
   },
   listPaymentOpen({ commit, state }, posUuid) {

@@ -64,7 +64,7 @@ export function showNotification({ type = 'success', title, message = '', summar
   return Notification({
     title,
     message: `
-      <div style="max-height: 100px; overflow-y: auto;">
+      <div style="max-height: 100px;max-width: 250px; overflow-y: auto;">
         ${message}
       </div>
     `,
@@ -80,7 +80,29 @@ export function showNotification({ type = 'success', title, message = '', summar
     }
   })
 }
-
+export function showNotificationReport({ type = 'success', title, message, link, openLink }) {
+  title = hasTranslation(title)
+  if (message) {
+    message = hasTranslation(message)
+  }
+  openLink = hasTranslation(openLink)
+  return Notification({
+    title,
+    message: `
+      <div style="max-height: 100px;max-width: 250px; overflow-y: auto; text-align: center;">
+        ${message}
+        <br><br>
+        <a href="${link}" target="_blank" class="notification-link">
+          <i class="el-icon-link" style="margin-right: 5px; font-size: 16px; vertical-align: middle;"></i>
+          <span style="font-weight: bold; font-size: 14px;">${openLink}</span>
+        </a>
+      </div>
+    `,
+    type,
+    position: 'bottom-right',
+    dangerouslyUseHTMLString: true
+  })
+}
 /**
  *
  * @param {string} type
@@ -96,6 +118,11 @@ export function showMessage({ type = 'success', message, duration = 0 }) {
     delay = duration
   }
 
+  if (type === 'warn') {
+    console.warn(message)
+  } else if (type === 'error') {
+    console.error(message)
+  }
   return Message({
     message,
     type,

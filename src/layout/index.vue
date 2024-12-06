@@ -2,12 +2,12 @@
   <div :class="classObj" class="app-wrapper">
     <div v-if="device==='mobile'&&sidebar.opened" class="drawer-bg" @click="handleClickOutside" />
     <sidebar v-show="showMenu" class="sidebar-container" />
-    <div :class="{hasTagsView:needTagsView}" class="main-container" :style="showMenu ? '' : 'margin-left:0px'">
-      <div :class="{'fixed-header':fixedHeader}">
+    <div :class="{hasTagsView:needTagsView}" class="main-container" :style="stylesClass">
+      <div v-if="!isMobile">
         <navbar v-show="showNavar" />
         <tags-view v-if="needTagsView" />
       </div>
-      <app-main />
+      <app-main :style="styleContainer" />
       <right-panel v-if="showSettings">
         <settings />
       </right-panel>
@@ -16,7 +16,7 @@
 </template>
 
 <script>
-import RightPanel from '@theme/components/RightPanel'
+import RightPanel from '@/components/RightPanel'
 import { AppMain, Navbar, Sidebar, Settings, TagsView } from './components'
 import ResizeMixin from './mixin/ResizeHandler'
 import { mapState } from 'vuex'
@@ -49,6 +49,28 @@ export default {
         withoutAnimation: this.sidebar.withoutAnimation,
         mobile: this.device === 'mobile'
       }
+    },
+    storedWindow() {
+      const window = this.$store.getters.getStoredWindow(this.$route.meta.uuid)
+      if (!this.isEmptyValue(window) && this.isEmptyValue(window.tabsListChild)) return true
+      return false
+    },
+    styleContainer() {
+      if (this.$route.meta.title === 'dashboard' || this.$route.meta.isSummary) {
+        return 'height: 90%;overflow: auto;'
+      }
+      // return 'height: 100%; overflow: hidden;'
+      return null
+    },
+    isMobile() {
+      return this.$store.state.app.device === 'mobile'
+    },
+    stylesClass() {
+      const storedForm = this.$store.getters.getStoredForm(this.$route.meta.uuid)
+      if (!this.isEmptyValue(storedForm) && storedForm.file_name === 'PriceChecking') {
+        return 'height: 100%;margin-left: 0px;'
+      }
+      return 'height: 100%'
     }
   },
   methods: {
@@ -67,6 +89,7 @@ export default {
     @include clearfix;
     position: relative;
     height: 100%;
+    overflow: hidden;
     width: 100%;
 
     &.mobile.openSidebar {

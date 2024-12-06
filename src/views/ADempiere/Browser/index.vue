@@ -1,82 +1,80 @@
 <!--
- ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
- Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
- Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com www.erpya.com
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+  ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+  Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+  Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https:www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https:www.gnu.org/licenses/>.
 -->
 
 <template>
-  <el-container
+  <div
     v-if="isLoadedMetadata"
+    id="browser-loaded"
     key="browser-loaded"
     class="view-base browser-view"
-    style="height: 86vh;"
   >
-    <el-header v-if="isShowContextMenu">
-      <div style="float: right;padding-top: 1%;">
-        <action-menu
-          :container-manager="containerManager"
-          :container-uuid="browserUuid"
-          :actions-manager="actionsManager"
-          :relations-manager="relationsManager"
-        />
-      </div>
-      <div class="center" style="width: 100%">
-        <!-- TODO: Correct when the title is large -->
+    <el-card class="content-collapse card-browser" style="overflow: auto;position: absolute;height: -webkit-fill-available !important;">
+      <div style="display:flex; justify-content: space-between;">
+        <div />
         <title-and-help
           :name="browserMetadata.name"
           :help="browserMetadata.help"
         />
-      </div>
-    </el-header>
-
-    <el-main>
-      <!-- query criteria -->
-      <collapse-criteria
-        :title="$t('views.searchCriteria')"
-        :container-uuid="browserUuid"
-        :container-manager="containerManager"
-      >
-        <panel-definition
-          class="browser-query-criteria"
-          :container-uuid="browserUuid"
-          :panel-metadata="browserMetadata"
+        <action-menu
           :container-manager="containerManager"
-          :is-show-filter="false"
+          :container-uuid="browserMetadata.uuid"
+          :actions-manager="actionsManager"
         />
-      </collapse-criteria>
-
-      <!-- result of records in the table -->
-      <default-table
-        class="browser-table-result"
-        :container-uuid="browserUuid"
-        :container-manager="containerManagerTable"
-        :panel-metadata="browserMetadata"
-        :header="tableHeader"
-        :data-table="recordsList"
-        :is-show-search="false"
-        :is-loading-data-table="!isLoaded"
-      />
-    </el-main>
-
+      </div>
+      <div id="browser-query-criteria">
+        <!-- Query Criteria -->
+        <collapse-criteria
+          :title="$t('views.searchCriteria')"
+          :container-uuid="browserMetadata.uuid"
+          :container-manager="containerManager"
+        >
+          <panel-definition
+            class="browser-query-criteria"
+            :container-uuid="browserMetadata.uuid"
+            :panel-metadata="browserMetadata"
+            :container-manager="containerManager"
+            :is-tab-panel="true"
+          />
+        </collapse-criteria>
+      </div>
+      <div id="browser-table">
+        <!-- Result of Records in the Table -->
+        <default-table
+          id="mainBrowser"
+          class="browser-table-result"
+          :container-uuid="browserMetadata.uuid"
+          :container-manager="containerManagerTable"
+          :panel-metadata="browserMetadata"
+          :header="tableHeader"
+          :fields-to-hidden="containerManager.getFieldsToHidden"
+          :data-table="recordsList"
+          :is-show-search="false"
+          :is-loading-data-table="!isLoaded"
+        />
+      </div>
+    </el-card>
     <modal-dialog
       v-if="!isEmptyValue(processUuid)"
       :container-manager="containerManagerProcess"
-      :parent-uuid="browserUuid"
+      :parent-uuid="browserMetadata.uuid"
       :container-uuid="processUuid"
     />
-  </el-container>
+  </div>
 
   <loading-view
     v-else
@@ -88,26 +86,24 @@
 import { computed, defineComponent, ref } from '@vue/composition-api'
 
 import language from '@/lang'
+import router from '@/router'
 import store from '@/store'
 
-// componets and mixins
-// import ActionMenu from '@theme/components/ADempiere/ActionMenu/index.vue'
-import ActionMenu from '@theme/components/ADempiere/ActionMenu/index.vue'
-import DefaultTable from '@theme/components/ADempiere/DefaultTable/index.vue'
-import CollapseCriteria from '@theme/components/ADempiere/CollapseCriteria/index.vue'
-import LoadingView from '@theme/components/ADempiere/LoadingView/index.vue'
+// Componets and Mixins
+import ActionMenu from '@/components/ADempiere/ActionMenu/index.vue'
+import CollapseCriteria from '@/components/ADempiere/CollapseCriteria/index.vue'
+import DefaultTable from '@/components/ADempiere/DataTable/index.vue'
+import LoadingView from '@/components/ADempiere/LoadingView/index.vue'
 import mixinProcess from '@/views/ADempiere/Process/mixinProcess.js'
-import ModalDialog from '@theme/components/ADempiere/ModalDialog/index.vue'
-import PanelDefinition from '@theme/components/ADempiere/PanelDefinition/index.vue'
-import TitleAndHelp from '@theme/components/ADempiere/TitleAndHelp'
+import ModalDialog from '@/components/ADempiere/ModalDialog/index.vue'
+import PanelDefinition from '@/components/ADempiere/PanelDefinition/index.vue'
+import TitleAndHelp from '@/components/ADempiere/TitleAndHelp'
 
-// utils and helper methods
+// Utils and Helper Methods
 import {
   containerManager,
-  isDisplayedColumn,
-  isMandatoryColumn,
   isReadOnlyColumn
-} from '@/utils/ADempiere/dictionary/browser.js'
+} from '@/utils/ADempiere/dictionary/browser/index.js'
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 
 export default defineComponent({
@@ -131,40 +127,60 @@ export default defineComponent({
     }
   },
 
-  setup(props, { root }) {
+  setup() {
     const isLoadedMetadata = ref(false)
     const browserMetadata = ref({})
     const containerManagerProcess = ref({})
+    const currentRoute = router.app._route
 
+    // as window source
     let parentUuid = ''
-    if (!isEmptyValue(root.$route.query) && !isEmptyValue(root.$route.query.parentUuid)) {
-      parentUuid = root.$route.query.parentUuid
+    if (!isEmptyValue(currentRoute.query) && !isEmptyValue(currentRoute.query.parentUuid)) {
+      parentUuid = currentRoute.query.parentUuid
+    }
+    // as tab source
+    let containerUuid = ''
+    if (!isEmptyValue(currentRoute.query) && !isEmptyValue(currentRoute.query.containerUuid)) {
+      containerUuid = currentRoute.query.containerUuid
     }
 
-    let browserUuid = ''
+    let browserId = -1
     // set uuid with linked menu
-    if (!isEmptyValue(root.$route.meta) && !isEmptyValue(root.$route.meta.uuid)) {
-      browserUuid = root.$route.meta.uuid
+    if (!isEmptyValue(currentRoute.meta) && !isEmptyValue(currentRoute.meta.uuid)) {
+      browserId = currentRoute.meta.action_uuid.toString()
     }
     // set uuid from associated browser without menu
-    if (!isEmptyValue(root.$route.params) && !isEmptyValue(root.$route.params.browserUuid)) {
-      browserUuid = root.$route.params.browserUuid
-    }
-    // set uuid from test
-    if (!isEmptyValue(props.uuid)) {
-      browserUuid = props.uuid
+    if (!isEmptyValue(currentRoute.params) && !isEmptyValue(currentRoute.params.browserId)) {
+      browserId = currentRoute.params.browserId.toString()
     }
 
+    const browserUuid = computed(() => {
+      let uuid = store.getters.getStoredBrowserUuidById(browserId)
+      if (!isEmptyValue(currentRoute.meta)) {
+        if (isEmptyValue(uuid) && !isEmptyValue(currentRoute.meta.uuid)) {
+          uuid = currentRoute.meta.uuid
+        }
+        if (isEmptyValue(uuid) && !isEmptyValue(currentRoute.meta.action_uuid)) {
+          uuid = currentRoute.meta.action_uuid
+        }
+      }
+      if (isEmptyValue(uuid) && !isEmptyValue(currentRoute.params) && !isEmptyValue(currentRoute.params.browserUuid)) {
+        uuid = currentRoute.params.browserUuid.toString()
+      }
+      return uuid
+    })
+
     const storedBrowser = computed(() => {
-      return store.getters.getStoredBrowser(browserUuid)
+      const uuid = isEmptyValue(browserUuid.value) ? browserId : browserUuid.value
+      return store.getters.getStoredBrowser(uuid)
     })
 
     const isLoaded = computed(() => {
-      const browser = store.state.browserManager.browserData[browserUuid]
-      if (isEmptyValue(browser)) {
-        return true
+      const browserData = store.state.browserManager.browserData[browserUuid.value]
+      if (isEmptyValue(browserData)) {
+        return false
       }
-      return browser.isLoaded
+      return browserData.isLoaded
     })
 
     /**
@@ -190,13 +206,14 @@ export default defineComponent({
     })
 
     const isReadyToSearch = computed(() => {
-      if (browserMetadata.value.awaitForValuesToQuery) {
+      if (isEmptyValue(browserUuid.value)) {
         return false
       }
+      const fieldsBrowser = store.getters.getBrowserFieldsEmptyMandatory({
+        containerUuid: browserUuid.value
+      })
       return isEmptyValue(
-        store.getters.getBrowserFieldsEmptyMandatory({
-          containerUuid: browserUuid
-        })
+        fieldsBrowser
       )
     })
 
@@ -220,7 +237,7 @@ export default defineComponent({
         }
 
         store.commit('changeBrowserAttribute', {
-          uuid: browserUuid,
+          uuid: browserUuid.value,
           attributeName: 'isShowedCriteria',
           attributeValue: showCriteria
         })
@@ -228,7 +245,14 @@ export default defineComponent({
     })
 
     const tableHeader = computed(() => {
-      return storedBrowser.value.fieldsList
+      if (isEmptyValue(storedBrowser.value)) {
+        return []
+      }
+      const { fieldsList } = storedBrowser.value
+      const header = fieldsList.sort((itemA, itemB) => {
+        return itemA.sequence - itemB.sequence
+      })
+      return header
     })
 
     function generateBrowser(browser) {
@@ -238,10 +262,10 @@ export default defineComponent({
       const { containerManager: containerManagerByProcess } = mixinProcess(processUuid)
       containerManagerProcess.value = containerManagerByProcess
 
-      if (!isEmptyValue(root.$route.params) && !isEmptyValue(root.$route.params.browserUuid)) {
+      if (!isEmptyValue(currentRoute.params) && !isEmptyValue(currentRoute.params.browserId)) {
         // update name in tag view
         store.dispatch('tagsView/updateVisitedView', {
-          ...root.$route,
+          ...currentRoute,
           title: `${language.t('route.smartBrowser')}: ${browser.name}`
         })
       }
@@ -251,12 +275,18 @@ export default defineComponent({
       const browser = storedBrowser.value
       if (browser) {
         generateBrowser(browser)
+
+        if (!isLoaded.value) {
+          defaultSearch()
+        }
         return
       }
 
       store.dispatch('getBrowserDefinitionFromServer', {
-        uuid: browserUuid,
-        parentUuid
+        // id: browserId,
+        uuid: browserUuid.value,
+        parentUuid,
+        containerUuid
       })
         .then(browserResponse => {
           generateBrowser(browserResponse)
@@ -266,19 +296,19 @@ export default defineComponent({
     }
 
     function defaultSearch() {
-      // if (this.isLoadedRecords) {
+      // if (isLoadedRecords.value) {
       //   // not research
       //   return
       // }
       if (isReadyToSearch.value) {
         // first search by default
         store.dispatch('getBrowserSearch', {
-          containerUuid: browserUuid
+          containerUuid: browserUuid.value
         })
 
         // hide showed criteria
         store.commit('changeBrowserAttribute', {
-          uuid: browserUuid,
+          uuid: browserUuid.value,
           attributeName: 'isShowedCriteria',
           attributeValue: false
         })
@@ -287,7 +317,7 @@ export default defineComponent({
 
       // set empty values into container data
       store.commit('setBrowserData', {
-        containerUuid: browserUuid
+        containerUuid: browserUuid.value
       })
     }
 
@@ -297,13 +327,6 @@ export default defineComponent({
       actionPerformed({ field, value, valueTo, containerUuid }) {
         // TODO: Logic to implement in table
       },
-
-      /**
-       * Is displayed column in table multi record
-       */
-      isDisplayedColumn,
-
-      isMandatoryColumn,
 
       isReadOnlyColumn({
         field,
@@ -325,50 +348,13 @@ export default defineComponent({
         containerUuid,
         row
       }) => {
-        const { isUpdateable, tableName } = store.getters.getStoredBrowser(containerUuid)
-        if (!isUpdateable || isEmptyValue(tableName)) {
+        const { is_updateable, tableName } = store.getters.getStoredBrowser(containerUuid)
+        if (!is_updateable || isEmptyValue(tableName)) {
           return Promise.resolve({})
         }
         return store.dispatch('updateRecordOfBrowser', {
           containerUuid,
           row
-        })
-      },
-
-      setRow: ({ containerUuid, rowIndex, row }) => {
-        return store.commit('setBrowserRow', {
-          containerUuid,
-          rowIndex,
-          row
-        })
-      },
-      getRow: ({ containerUuid, rowIndex }) => {
-        return store.getters.getBrowserRowData({
-          containerUuid,
-          rowIndex
-        })
-      },
-
-      setCell: ({ containerUuid, rowIndex, columnName, value }) => {
-        return store.commit('setBrowserCell', {
-          containerUuid,
-          rowIndex,
-          columnName,
-          value
-        })
-      },
-      getCell: ({ containerUuid, rowIndex, columnName }) => {
-        return store.getters.getBrowserCellData({
-          containerUuid,
-          rowIndex,
-          columnName
-        })
-      },
-
-      setPage: ({ containerUuid, pageNumber }) => {
-        store.dispatch('getBrowserSearch', {
-          containerUuid,
-          pageNumber
         })
       },
 
@@ -393,38 +379,35 @@ export default defineComponent({
 
     const actionsManager = computed(() => {
       return {
-        containerUuid: browserUuid,
+        containerUuid: browserUuid.value,
 
         defaultActionName: processName.value,
 
         getActionList: () => store.getters.getStoredActionsMenu({
-          containerUuid: browserUuid
+          containerUuid: browserUuid.value
         })
       }
-    })
-
-    const relationsManager = ref({
-      menuParentUuid: root.$route.meta.parentUuid
     })
 
     // get records list
     const recordsList = computed(() => {
       return store.getters.getBrowserRecordsList({
-        containerUuid: browserUuid
+        containerUuid: browserUuid.value
       })
     })
 
     getBrowserDefinition()
 
     return {
+      store,
       isLoadedMetadata,
+      browserId,
       browserUuid,
       browserMetadata,
       containerManager,
       containerManagerProcess,
       containerManagerTable,
       actionsManager,
-      relationsManager,
       // computed
       isLoaded,
       isShowContextMenu,
@@ -438,9 +421,24 @@ export default defineComponent({
 </script>
 
 <style lang="scss">
+// Browser View
 .browser-view {
+  height: 90%;
   .browser-collapse {
     margin-bottom: 10px;
+  }
+  .el-card__body {
+    height: 100%;
+    padding-top: 4px !important;
+    .el-button--medium{
+      padding-top: 7px !important;
+    }
+    #browser-query-criteria{
+      .el-main{
+        padding-top: 0px !important;
+        padding-bottom: 0px !important;
+      }
+    }
   }
 
   /* removes the title link effect on collapse */
@@ -459,7 +457,8 @@ export default defineComponent({
   }
 }
 </style>
-<style scoped>
+<style lang="scss" scoped>
+// Browser View
 .el-main {
   padding-bottom: 0px;
   padding-top: 0px;
@@ -472,4 +471,5 @@ export default defineComponent({
 .center {
   text-align: center;
 }
+
 </style>

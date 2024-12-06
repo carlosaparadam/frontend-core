@@ -1,40 +1,51 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Yamel Senih ysenih@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+// API Request Methods
+import { requestProcessMetadata } from '@/api/ADempiere/dictionary/process'
 
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-import router from '@/router'
-
-// api request methods
-import { requestProcessMetadata } from '@/api/ADempiere/dictionary/process.js'
-
-// constants
+// Constants
 import {
   sharedLink
 } from '@/utils/ADempiere/constants/actionsMenuList.js'
 
-// utils and helper methods
-import { generateProcess, runProcess } from '@/utils/ADempiere/dictionary/process.js'
+// Utils and Helper Methods
+import { isSalesTransaction } from '@/utils/ADempiere/contextUtils'
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
+import {
+  containerManager, generateProcess, isDisplayedField
+} from '@/utils/ADempiere/dictionary/process.js'
+import {
+  clearParameters, runProcess
+} from '@/utils/ADempiere/dictionary/process/actionsMenu.ts'
 
 export default {
   addProcessToList({ commit, dispatch }, processResponse) {
     return new Promise(resolve => {
       commit('addProcessToList', processResponse)
 
+      dispatch('setProcessDefaultValues', {
+        containerUuid: processResponse.uuid,
+        fieldsList: processResponse.fieldsList
+      })
+
       dispatch('seProcessActionsMenu', {
-        containerUuid: processResponse.uuid
+        processUuid: processResponse.uuid
       })
 
       resolve(processResponse)
@@ -45,21 +56,23 @@ export default {
    * Get process dictionary definition
    * @param {string} uuid of dictionary
    */
-  getProcessDefinitionFromServer({ dispatch }, {
-    uuid
+  getProcessDefinitionFromServer({ dispatch, rootGetters }, {
+    id,
+    containerUuidAssociated
   }) {
+    const language = rootGetters['getCurrentLanguage']
+    const dictionaryCode = rootGetters['user/getDictionaryCode']
+
     return new Promise((resolve, reject) => {
       requestProcessMetadata({
-        uuid
+        id,
+        language,
+        dictionaryCode
       })
         .then(processResponse => {
           const { processDefinition } = generateProcess({
-            processToGenerate: processResponse
-          })
-
-          dispatch('setProcessDefaultValues', {
-            containerUuid: processDefinition.uuid,
-            fieldsList: processDefinition.fieldsList
+            processToGenerate: processResponse,
+            containerUuidAssociated
           })
 
           dispatch('addProcessToList', processDefinition)
@@ -76,24 +89,26 @@ export default {
    * @param {string} containerUuid
    */
   seProcessActionsMenu({ commit, getters }, {
-    containerUuid
+    processUuid
   }) {
-    const processDefinition = getters.getStoredProcess(containerUuid)
+    const processDefinition = getters.getStoredProcess(processUuid)
 
     const actionsList = []
 
     // execute process action
     const actionExecute = {
       ...runProcess,
-      description: processDefinition.description
+      description: processDefinition.description,
+      uuid: processDefinition.uuid
     }
     actionsList.push(actionExecute)
+    actionsList.push(clearParameters)
 
     // action shared link
     actionsList.push(sharedLink)
 
     commit('setActionMenu', {
-      containerUuid,
+      containerUuid: processDefinition.uuid,
       actionsList
     })
   },
@@ -111,15 +126,23 @@ export default {
     }
 
     fieldsList.forEach(itemField => {
-      let isShowedFromUser = false
-      if (fieldsShowed.includes(itemField.columnName)) {
-        isShowedFromUser = true
+      const { column_name, isShowedFromUser } = itemField
+
+      const isShowedFromUserGenerated = fieldsShowed.includes(column_name)
+      if (isShowedFromUser === isShowedFromUserGenerated) {
+        // no to mutate the state unnecessarily
+        return
+      }
+
+      if (!isDisplayedField(itemField)) {
+        // is hidden by logic not change showed from user
+        return
       }
 
       commit('changeProcessFieldAttribute', {
         field: itemField,
         attributeName: 'isShowedFromUser',
-        attributeValue: isShowedFromUser
+        attributeValue: isShowedFromUserGenerated
       })
     })
   },
@@ -138,10 +161,13 @@ export default {
         fieldsList = getters.getStoredFieldsFromProcess(containerUuid)
       }
 
-      const currentRoute = router.app._route
+      const isSalesTransactionContext = isSalesTransaction({
+        containerUuid,
+        isRecord: false
+      })
       const defaultAttributes = getters.getParsedDefaultValues({
         containerUuid,
-        isSOTrxMenu: currentRoute.meta.isSalesTransaction,
+        isSOTrxDictionary: isSalesTransactionContext,
         fieldsList
       })
 
@@ -149,6 +175,19 @@ export default {
         containerUuid,
         isOverWriteParent: true,
         attributes: defaultAttributes
+      })
+      if (isEmptyValue(fieldsList)) {
+        resolve(defaultAttributes)
+        return
+      }
+
+      fieldsList.forEach(field => {
+        // activate logics
+        dispatch('changeDependentFieldsList', {
+          field,
+          fieldsList,
+          containerManager
+        })
       })
 
       resolve(defaultAttributes)

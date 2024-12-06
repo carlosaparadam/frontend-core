@@ -1,18 +1,20 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Yamel Senih ysenih@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Yamel Senih ysenih@erpya.com
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 // A simple class for make easy lookup for dynamic forms from ADempiere Meta-Data
 // note that it can be used for create meta-data for lookups
@@ -28,12 +30,12 @@
 // - isAdvancedQuery:
 // - isMandatory:
 // - isMandatoryFromLogic
-// - isReadOnly:
+// - is_read_only:
 // - isDisplayed:
 // - isShowedFromUser
 // - isActive:
 // - isSelectCreated:
-// - isAlwaysUpdateable:
+// - is_always_updateable:
 // - parentUuid:
 // - containerUuid:
 // - value:
@@ -42,13 +44,13 @@
 // - directQuery:
 // - tableName:
 // Date and Time:
-// - isRange
+// - is_range
 // - vFormat
 // - valueTo
 // - valueMax
 // - valueMin
 // Number:
-// - isRange
+// - is_range
 // - valueTo
 // - valueMax
 // - valueMin
@@ -61,24 +63,31 @@
 // - directQuery
 // - tableName
 // - displayColumnName
-// - defaultValue
+// - default_value
 
 import store from '@/store'
 
-// constants
+// Constants
 import { CHAR, DEFAULT_SIZE, TABLE_DIRECT } from '@/utils/ADempiere/references.js'
-import { evalutateTypeField, getDefaultValue, getEvaluatedLogics } from '@/utils/ADempiere/dictionaryUtils.js'
+import {
+  DISPLAY_COLUMN_PREFIX, evalutateTypeField
+} from '@/utils/ADempiere/dictionaryUtils.js'
 
-// utils and helper methods
+// Utils and Helper Methods
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
-import { getParentFields } from '@/utils/ADempiere/contextUtils.js'
+import {
+  getContextDefaultValue, getEvaluatedFieldLogics, getParentFields
+} from '@/utils/ADempiere/contextUtils/contextField'
 
-// Create a Field from UUID based on server meta-data
+/**
+ * Create a Field from UUID based on server meta-data
+ * TODO: With table name not stored search, add table name into field metadata
+ */
 export function createFieldFromDictionary({
   containerUuid,
-  uuid,
-  columnUuid,
-  elementUuid,
+  id,
+  columnId,
+  elementId,
   elementColumnName,
   tableName,
   columnName,
@@ -86,15 +95,15 @@ export function createFieldFromDictionary({
 }) {
   let field
   let valueToMatch
-  if (uuid) {
-    field = store.getters.getFieldFromUuid(uuid)
-    valueToMatch = uuid
-  } else if (columnUuid) {
-    field = store.getters.getFieldFromColumnUuid(columnUuid)
-    valueToMatch = columnUuid
-  } else if (elementUuid) {
-    field = store.getters.getFieldFromElementUuid(elementUuid)
-    valueToMatch = elementUuid
+  if (id) {
+    field = store.getters.getFieldFromId(id)
+    valueToMatch = id
+  } else if (columnId) {
+    field = store.getters.getFieldFromColumnId(columnId)
+    valueToMatch = columnId
+  } else if (elementId) {
+    field = store.getters.getFieldFromElementId(elementId)
+    valueToMatch = elementId
   } if (elementColumnName) {
     field = store.getters.getFieldFromElementColumnName(elementColumnName)
     valueToMatch = elementColumnName
@@ -109,9 +118,9 @@ export function createFieldFromDictionary({
   if (isEmptyValue(field)) {
     return new Promise(resolve => {
       store.dispatch('getFieldFromServer', {
-        uuid,
-        columnUuid,
-        elementUuid,
+        id,
+        columnId,
+        elementId,
         elementColumnName,
         tableName,
         columnName
@@ -131,10 +140,10 @@ export function createFieldFromDictionary({
             containerUuid,
             columnName,
             definition: {
-              uuid,
-              columnUuid,
-              elementUuid,
-              elementColumnName,
+              id,
+              columnId,
+              elementId,
+              elementName: elementColumnName,
               tableName,
               columnName,
               ...overwriteDefinition
@@ -164,9 +173,9 @@ function getFactoryFromField({
 }) {
   const definition = {
     parentFieldsList: field.parentFieldsList || [],
-    dependentFieldsList: field.dependentFieldsList || [],
+    dependent_fields: field.dependent_fields || [],
     ...field,
-    isDisplayed: true,
+    is_displayed: true,
     // Overwrite definition
     ...overwriteDefinition
   }
@@ -191,21 +200,18 @@ export function createFieldFromDefinition({
   definition = {}
 }) {
   if (!isEmptyValue(definition)) {
-    if (isEmptyValue(definition.displayType)) {
-      definition.displayType = CHAR.id
-    } else if (definition.displayType === TABLE_DIRECT.id &&
+    if (isEmptyValue(definition.display_type)) {
+      definition.display_type = CHAR.id
+    } else if (definition.display_type === TABLE_DIRECT.id &&
       isEmptyValue(definition.tableName) &&
       columnName.indexOf('_ID') > 0) {
       definition.tableName = columnName.replace('_ID', '')
     }
-    if (isEmptyValue(definition.isActive)) {
-      definition.isActive = true
+    if (isEmptyValue(definition.is_displayed)) {
+      definition.is_displayed = true
     }
-    if (isEmptyValue(definition.isDisplayed)) {
-      definition.isDisplayed = true
-    }
-    if (isEmptyValue(definition.isReadOnly)) {
-      definition.isReadOnly = false
+    if (isEmptyValue(definition.is_read_only)) {
+      definition.is_read_only = false
     }
 
     if (isEmptyValue(definition.isMandatory)) {
@@ -213,7 +219,7 @@ export function createFieldFromDefinition({
     }
     if (isEmptyValue(definition.sequence)) {
       definition.sequence = 0
-      if (definition.isDisplayed) {
+      if (definition.is_displayed) {
         definition.sequence = 10
       }
     }
@@ -232,12 +238,12 @@ export function createFieldFromDefinition({
 
 // Default template for injected fields
 export function getFieldTemplate(overwriteDefinition) {
-  let displayType = CHAR.id // String reference (10)
-  if (!isEmptyValue(overwriteDefinition.displayType)) {
-    displayType = overwriteDefinition.displayType
+  let display_type = CHAR.id // String reference (10)
+  if (!isEmptyValue(overwriteDefinition.display_type)) {
+    display_type = overwriteDefinition.display_type
   }
 
-  const componentReference = evalutateTypeField(displayType)
+  const componentReference = evalutateTypeField(display_type)
 
   // set size from displayed, max 24
   let size = DEFAULT_SIZE
@@ -266,56 +272,56 @@ export function getFieldTemplate(overwriteDefinition) {
     description: '',
     help: '',
     columnName: '',
-    displayColumnName: `DisplayColumn_${overwriteDefinition.columnName}`, // key to display column
+    displayColumnName: DISPLAY_COLUMN_PREFIX + overwriteDefinition.columnName, // key to display column
+    elementName: '',
     fieldGroup: {
       name: '',
       fieldGroupType: ''
     },
-    displayType,
+    display_type,
     componentPath: componentReference.componentPath,
     size,
     isFieldOnly: false,
-    isRange: false,
+    is_range: false,
     isSameLine: false,
     sequence: 0,
-    seqNoGrid: 0,
-    isIdentifier: 0,
-    isKey: false,
-    isSelectionColumn: false,
-    isUpdateable: true,
+    seq_no_grid: 0,
+    is_identifier: 0,
+    is_key: false,
+    is_selection_column: false,
+    is_updateable: true,
     //
     formatPattern: undefined,
     vFormat: undefined,
     value: undefined,
     valueTo: undefined,
-    defaultValue: undefined,
+    default_value: undefined,
     parsedDefaultValue: undefined,
-    defaultValueTo: undefined,
+    default_value_to: undefined,
     parsedDefaultValueTo: undefined,
     valueType: componentReference.valueType, // value type to convert with gGRPC
     valueMin: undefined,
     valueMax: undefined,
     //
-    isDisplayed: false,
-    isActive: true,
-    isMandatory: false,
-    isReadOnly: false,
+    is_displayed: false,
+    is_mandatory: false,
+    is_read_only: false,
     isDisplayedFromLogic: undefined,
     isReadOnlyFromLogic: undefined,
     isMandatoryFromLogic: undefined,
     // browser attributes
     callout: undefined,
-    isQueryCriteria: false,
-    displayLogic: undefined,
-    mandatoryLogic: undefined,
-    readOnlyLogic: undefined,
+    is_query_criteria: false,
+    display_logic: undefined,
+    mandatory_logic: undefined,
+    read_only_logic: undefined,
     handleFocusGained: false,
     handleFocusLost: false,
     handleKeyPressed: false,
     handleKeyReleased: false,
     handleActionKeyPerformed: false,
     handleActionPerformed: false,
-    dependentFieldsList: [],
+    dependent_fields: [],
     reference: {
       tableName: '',
       keyColumnName: '',
@@ -326,35 +332,41 @@ export function getFieldTemplate(overwriteDefinition) {
     contextInfo: undefined,
     isShowedFromUser: false,
     isFixedTableColumn: false,
+    isEnabledOptionsFields: false,
     ...overwriteDefinition
+  }
+
+  if (isEmptyValue(fieldTemplateMetadata.element_name) && !isEmptyValue(fieldTemplateMetadata.columnName)) {
+    fieldTemplateMetadata.elementColumnName = fieldTemplateMetadata.columnName
   }
 
   // get parsed parent fields list
   const parentFieldsList = getParentFields(fieldTemplateMetadata)
 
-  // TODO: Add support to isSOTrxMenu
-  const parsedDefaultValue = getDefaultValue({
+  // TODO: Add support to isSOTrxDictionary
+  const parsedDefaultValue = getContextDefaultValue({
     ...fieldTemplateMetadata
   })
 
   let parsedDefaultValueTo
-  if (fieldTemplateMetadata.isRange) {
-    parsedDefaultValueTo = getDefaultValue({
+  if (fieldTemplateMetadata.is_range) {
+    parsedDefaultValueTo = getContextDefaultValue({
       ...fieldTemplateMetadata,
-      defaultValue: fieldTemplateMetadata.defaultValueTo,
+      default_value: fieldTemplateMetadata.default_value_to,
       columnName: `${fieldTemplateMetadata.columnName}_To`,
-      elementName: `${fieldTemplateMetadata.elementName}_To`
+      element_name: `${fieldTemplateMetadata.element_name}_To`
     })
   }
 
   // evaluate logics (diplayed, mandatory, readOnly)
-  const evaluatedLogics = getEvaluatedLogics({
+  const evaluatedLogics = getEvaluatedFieldLogics({
     ...fieldTemplateMetadata
   })
 
   return {
     ...fieldTemplateMetadata,
     ...evaluatedLogics,
+    column_name: fieldTemplateMetadata.columnName,
     parsedDefaultValue,
     parsedDefaultValueTo,
     parentFieldsList

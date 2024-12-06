@@ -16,13 +16,16 @@
  along with this program.  If not, see <https:www.gnu.org/licenses/>.
 -->
 <template>
-  <div v-if="isIndex" key="sumary" class="app-container">
+  <div v-if="isIndex" id="sumary" key="sumary" style="overflow: auto;display: block;height: inherit;">
     <title-and-help
       :name="$route.meta.title"
       :help="$route.meta.description"
     />
 
-    <el-row :gutter="10">
+    <el-row
+      :gutter="10"
+      style="overflow: auto; height: 95%;"
+    >
       <template v-if="!isEmptyValue(optionList.children)">
         <template v-for="(item, key) in optionList.children">
           <dropdown-menu
@@ -51,8 +54,8 @@
 </template>
 
 <script>
-import DropdownMenu from '@theme/components/ADempiere/DropdownMenu'
-import TitleAndHelp from '@theme/components/ADempiere/TitleAndHelp'
+import DropdownMenu from '@/components/ADempiere/DropdownMenu'
+import TitleAndHelp from '@/components/ADempiere/TitleAndHelp'
 
 export default {
   name: 'SummaryView',
@@ -89,5 +92,8 @@ export default {
   .description {
     text-align: center;
     cursor: default;
+  }
+  .el-row .el-card__body {
+    padding-top: auto !important
   }
 </style>

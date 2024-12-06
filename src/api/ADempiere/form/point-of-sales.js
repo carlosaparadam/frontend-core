@@ -1,31 +1,38 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Yamel Senih ysenih@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Elsio Sanchez elsiosanchez15@outlook.com https://github.com/elsiosanchez
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 // Get Instance for connection
 import { request } from '@/utils/ADempiere/request'
 import { config } from '@/utils/ADempiere/config'
-import { isEmptyValue } from '@/utils/ADempiere'
+
+// Utils and Helper Methods
+import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
 import { camelizeObjectKeys } from '@/utils/ADempiere/transformObject.js'
+
+// Constants
+import { ROWS_OF_RECORDS_BY_PAGE } from '@/utils/ADempiere/tableUtils'
+import { RECORD_ROWS_BY_LIST } from '@/utils/ADempiere/dictionary/field/lookups'
 
 /**
  * method in api/price-checking.js as getProductPrice
  * @author elsiosanchez <elsiosanches@gmail.com>
  */
 export { getProductPrice as findProduct } from '@/api/ADempiere/form/price-checking.js'
-export { requestGetConversionRate } from '@/api/ADempiere/system-core.js'
 
 // List Point of sales
 export function getPointOfSales({
@@ -48,7 +55,7 @@ export function getPointOfSales({
 // List Point of sales
 export function listPointOfSales({
   userUuid,
-  pageSize,
+  pageSize = ROWS_OF_RECORDS_BY_PAGE,
   pageToken
 }) {
   return request({
@@ -115,7 +122,8 @@ export function updateOrder({
   discountAmount,
   discountRateOff,
   warehouseUuid,
-  campaignUuid
+  campaignUuid,
+  salesRepresentativeUuid
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/update-order`,
@@ -131,6 +139,7 @@ export function updateOrder({
       discount_rate: discount,
       discount_amount_off: discountAmount,
       campaign_uuid: campaignUuid,
+      sales_representative_uuid: salesRepresentativeUuid,
       discount_rate_off: discountRateOff
     }
   })
@@ -140,114 +149,14 @@ export function updateOrder({
       return convertOrder(updateOrderResponse)
     })
 }
-// Create Customer
-export function createCustomer({
-  value,
-  taxId,
-  duns,
-  naics,
-  name,
-  lastName,
-  description,
-  addresses,
-  phone,
-  additionalAttributes,
-  posUuid
-}) {
-  return request({
-    url: 'form/addons/point-of-sales/create-customer',
-    method: 'post',
-    data: {
-      value,
-      tax_id: taxId,
-      name,
-      last_name: lastName,
-      description,
-      phone,
-      addresses,
-      additional_attributes: additionalAttributes,
-      pos_uuid: posUuid
-    }
-  })
-    .then(businessPartnerResponse => {
-      const { convertBusinessPartner } = require('@/utils/ADempiere/apiConverts/core.js')
-
-      return convertBusinessPartner(businessPartnerResponse)
-    })
-}
-// Update Customer
-export function updateCustomer({
-  uuid,
-  value,
-  taxId,
-  duns,
-  naics,
-  name,
-  lastName,
-  description,
-  additionalAttributes,
-  addresses,
-  phone,
-  posUuid
-}) {
-  return request({
-    url: 'form/addons/point-of-sales/update-customer',
-    method: 'post',
-    data: {
-      uuid,
-      value,
-      tax_id: taxId,
-      name,
-      additional_attributes: additionalAttributes,
-      last_name: lastName,
-      description,
-      phone,
-      addresses,
-      pos_uuid: posUuid
-    }
-  })
-    .then(businessPartnerResponse => {
-      const { convertBusinessPartner } = require('@/utils/ADempiere/apiConverts/core.js')
-
-      return convertBusinessPartner(businessPartnerResponse)
-    })
-}
-
-export function customer({
-  searchValue,
-  value,
-  name,
-  contactName,
-  eMail,
-  phone,
-  postalCode
-}) {
-  return request({
-    url: 'form/addons/point-of-sales/customer',
-    method: 'get',
-    params: {
-      search_value: searchValue,
-      value,
-      name,
-      contact_name: contactName,
-      e_mail: eMail,
-      phone,
-      postal_code: postalCode
-    }
-  })
-    .then(businessPartnerResponse => {
-      const { convertBusinessPartner } = require('@/utils/ADempiere/apiConverts/core.js')
-
-      return convertBusinessPartner(businessPartnerResponse)
-    })
-}
 
 // Get order from uuid
-export function getOrder(orderUuid) {
+export function getOrder(orderUuid, posUuid) {
   return request({
     url: `${config.pointOfSales.endpoint}/order`,
     method: 'get',
     params: {
+      pos_uuid: posUuid,
       order_uuid: orderUuid
     }
   })
@@ -260,18 +169,18 @@ export function getOrder(orderUuid) {
 
 // Create order from POS
 export function deleteOrder({
-  orderUuid
-  // posUuid,
+  orderUuid,
+  posUuid
   // customerUuid,
   // documentTypeUuid,
   // salesRepresentativeUuid
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/delete-order`,
-    method: 'post',
-    data: {
-      order_uuid: orderUuid
-      // pos_uuid: posUuid,
+    method: 'delete',
+    params: {
+      order_uuid: orderUuid,
+      pos_uuid: posUuid
       // customer_uuid: customerUuid,
       // document_type_uuid: documentTypeUuid,
       // sales_representative_uuid: salesRepresentativeUuid
@@ -289,6 +198,9 @@ export function listOrders({
   businessPartnerUuid,
   grandTotal,
   openAmount,
+  isClosed,
+  isNullified,
+  isBindingOffer,
   isWaitingForPay,
   isOnlyProcessed,
   isOnlyAisleSeller,
@@ -297,7 +209,8 @@ export function listOrders({
   dateOrderedFrom,
   dateOrderedTo,
   salesRepresentativeUuid,
-  pageSize,
+  isOnlyRMA,
+  pageSize = ROWS_OF_RECORDS_BY_PAGE,
   pageToken
 }) {
   return request({
@@ -315,6 +228,10 @@ export function listOrders({
       is_only_aisle_seller: isOnlyAisleSeller,
       is_waiting_for_invoice: isWaitingForInvoice,
       is_waiting_for_shipment: isWaitingForShipment,
+      is_binding_offer: isBindingOffer,
+      is_closed: isClosed,
+      is_only_rma: isOnlyRMA,
+      is_nullified: isNullified,
       date_ordered_from: dateOrderedFrom,
       date_ordered_to: dateOrderedTo,
       page_size: pageSize,
@@ -336,6 +253,7 @@ export function listOrders({
 
 // Create order line from order uuid and product
 export function createOrderLine({
+  posUuid,
   orderUuid,
   priceListUuid,
   warehouseUuid,
@@ -344,12 +262,14 @@ export function createOrderLine({
   description,
   quantity,
   price,
-  discountRate
+  discountRate,
+  resourceAssignmentUuid
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/create-order-line`,
     method: 'post',
     data: {
+      pos_uuid: posUuid,
       order_uuid: orderUuid,
       product_uuid: productUuid,
       description,
@@ -358,7 +278,8 @@ export function createOrderLine({
       discount_rate: discountRate,
       charge_uuid: chargeUuid,
       price_list_uuid: priceListUuid,
-      warehouse_uuid: warehouseUuid
+      warehouse_uuid: warehouseUuid,
+      resource_assignment_uuid: resourceAssignmentUuid
     }
   })
     .then(createOrderLineResponse => {
@@ -370,12 +291,14 @@ export function createOrderLine({
 
 // updateOrderLine orders from pos uuid
 export function updateOrderLine({
+  posUuid,
   orderLineUuid,
   description,
   quantity,
   price,
   discountRate,
-  priceListUuid,
+  uomUuid,
+  isAddQuantity,
   warehouseUuid
 }) {
   return request({
@@ -383,12 +306,14 @@ export function updateOrderLine({
     method: 'post',
     data: {
       // is_add_quantity: true,
+      pos_uuid: posUuid,
       order_line_uuid: orderLineUuid,
       description,
       quantity,
       price,
       discount_rate: discountRate,
-      price_list_uuid: priceListUuid,
+      uom_uuid: uomUuid,
+      is_add_quantity: isAddQuantity,
       warehouse_uuid: warehouseUuid
     }
   })
@@ -401,12 +326,14 @@ export function updateOrderLine({
 
 // delete Order Line
 export function deleteOrderLine({
+  posUuid,
   orderLineUuid
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/delete-order-line`,
-    method: 'post',
-    data: {
+    method: 'delete',
+    params: {
+      pos_uuid: posUuid,
       order_line_uuid: orderLineUuid
     }
   })
@@ -416,14 +343,16 @@ export function deleteOrderLine({
 }
 
 export function listOrderLines({
+  posUuid,
   orderUuid,
-  pageSize,
+  pageSize = 50, // ROWS_OF_RECORDS_BY_PAGE,
   pageToken
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/order-lines`,
     method: 'get',
     params: {
+      pos_uuid: posUuid,
       order_uuid: orderUuid,
       page_size: pageSize,
       page_token: pageToken
@@ -442,11 +371,12 @@ export function listOrderLines({
     })
 }
 
-export function getKeyLayout({ keyLayoutUuid }) {
+export function getKeyLayout({ keyLayoutUuid, posUuid }) {
   return request({
     url: `${config.pointOfSales.endpoint}/key-layout`,
     method: 'get',
     params: {
+      pos_uuid: posUuid,
       key_layout_uuid: keyLayoutUuid
     }
   })
@@ -462,7 +392,7 @@ export function getProductPriceList({
   searchValue,
   businessPartnerUuid,
   posUuid,
-  pageSize,
+  pageSize = ROWS_OF_RECORDS_BY_PAGE,
   priceListUuid,
   warehouseUuid,
   pageToken
@@ -494,19 +424,55 @@ export function getProductPriceList({
 }
 
 export function printTicket({
+  posId,
+  orderId
+}) {
+  return request({
+    url: `${config.pointOfSales.endpoint}/print-ticket`,
+    method: 'post',
+    data: {
+      pos_id: posId,
+      order_id: orderId
+    }
+  })
+    .then(printTicketResponse => {
+      return printTicketResponse
+    })
+}
+
+export function printTicketPreviwer({
   posUuid,
   orderUuid
 }) {
   return request({
-    url: `${config.pointOfSales.endpoint}/print-ticket`,
+    url: `${config.pointOfSales.endpoint}/print-preview`,
     method: 'post',
     data: {
       pos_uuid: posUuid,
       order_uuid: orderUuid
     }
   })
-    .then(printTicketResponse => {
-      return printTicketResponse
+    .then(printTicketPreviwer => {
+      return printTicketPreviwer
+    })
+}
+
+export function printShipmentPreviwer({
+  posUuid,
+  shipmentUuid,
+  reportType
+}) {
+  return request({
+    url: `${config.pointOfSales.endpoint}/print-shipment-preview`,
+    method: 'post',
+    data: {
+      pos_uuid: posUuid,
+      shipment_uuid: shipmentUuid,
+      report_type: reportType
+    }
+  })
+    .then(printShipmentPreviwer => {
+      return printShipmentPreviwer
     })
 }
 
@@ -543,7 +509,6 @@ export function createNewReturnOrder({
 }
 
 // Create Payment
-
 export function createPayment({
   posUuid,
   orderUuid,
@@ -557,7 +522,11 @@ export function createPayment({
   paymentMethodUuid,
   chargeUuid,
   isRefund,
-  currencyUuid
+  currencyUuid,
+  invoiceReferenceId,
+  collectingAgentUuid,
+  customerBankAccountUuid,
+  referenceBankAccountUuid
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/create-payment`,
@@ -575,7 +544,11 @@ export function createPayment({
       tender_type_code: tenderTypeCode,
       payment_method_uuid: paymentMethodUuid,
       is_refund: isRefund,
-      currency_uuid: currencyUuid
+      invoice_reference_id: invoiceReferenceId,
+      currency_uuid: currencyUuid,
+      collecting_agent_uuid: collectingAgentUuid,
+      reference_bank_account_uuid: referenceBankAccountUuid,
+      customer_bank_account_uuid: customerBankAccountUuid
     }
   })
     .then(createPaymentResponse => {
@@ -584,27 +557,30 @@ export function createPayment({
 }
 
 // Update Payment
-
 export function updatePayment({
+  posUuid,
   paymentUuid,
   bankUuid,
   referenceNo,
   description,
   amount,
   paymentDate,
-  tenderTypeCode
+  tenderTypeCode,
+  referenceBankAccountUuid
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/update-payment`,
     method: 'post',
     data: {
+      pos_uuid: posUuid,
       payment_uuid: paymentUuid,
       bank_uuid: bankUuid,
       reference_no: referenceNo,
       description: description,
       amount: amount,
       payment_date: paymentDate,
-      tender_type_code: tenderTypeCode
+      tender_type_code: tenderTypeCode,
+      reference_bank_account_uuid: referenceBankAccountUuid
     }
   })
     .then(updatePaymentResponse => {
@@ -613,14 +589,15 @@ export function updatePayment({
 }
 
 // Delete Payment
-
 export function deletePayment({
+  posUuid,
   paymentUuid
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/delete-payment`,
-    method: 'post',
-    data: {
+    method: 'delete',
+    params: {
+      pos_uuid: posUuid,
       payment_uuid: paymentUuid
     }
   })
@@ -630,7 +607,6 @@ export function deletePayment({
 }
 
 // List Payments
-
 export function getPaymentsList({
   posUuid,
   orderUuid,
@@ -788,15 +764,21 @@ export function overdrawnInvoice({
  * @returns {string}
  */
 export function validatePin({
+  pin,
   posUuid,
-  pin
+  orderId,
+  requestedAccess,
+  requestedAmount
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/validate-pin`,
     method: 'post',
     data: {
+      pin: pin,
       pos_uuid: posUuid,
-      pin: pin
+      order_id: orderId,
+      requested_access: requestedAccess,
+      requested_amount: requestedAmount
     }
   })
     .then(pinResponse => {
@@ -885,13 +867,15 @@ export function listCurrencies({
  * @param {string} posUuidd - POS UUID reference
  */
 export function listTenderTypes({
-  posUuid
+  posUuid,
+  pageSize = RECORD_ROWS_BY_LIST
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/available-payment-methods`,
     method: 'get',
     params: {
-      pos_uuid: posUuid
+      pos_uuid: posUuid,
+      page_size: pageSize
     }
   })
     .then(listTenderType => {
@@ -925,6 +909,7 @@ export function createCustomerAccount({
       return responseCustomerAccount
     })
 }
+
 /**
  * Refund payment at a later time
  * customer_uuid - Customer UUID
@@ -996,15 +981,20 @@ export function createCustomerBankAccount({
       return camelizeObjectKeys(responseCreateCustomerBankAccount)
     })
 }
+
 export function listCustomerBankAccounts({
+  posUuid,
   customerUuid,
+  pageSize = ROWS_OF_RECORDS_BY_PAGE,
   pageToken
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/customer-bank-accounts`,
     method: 'get',
     params: {
+      pos_uuid: posUuid,
       customer_uuid: customerUuid,
+      page_size: pageSize,
       page_token: pageToken
     }
   })
@@ -1012,13 +1002,16 @@ export function listCustomerBankAccounts({
       return camelizeObjectKeys(responseListCustomerBankAccounts)
     })
 }
+
 export function daleteCustomerBankAccounts({
+  posUuid,
   customerBankAccountUuid
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/delete-bank-account`,
-    method: 'post',
-    data: {
+    method: 'delete',
+    params: {
+      pos_uuid: posUuid,
       customer_bank_account_uuid: customerBankAccountUuid
     }
   })
@@ -1026,6 +1019,7 @@ export function daleteCustomerBankAccounts({
       return camelizeObjectKeys(responseCreateCustomerBankAccount)
     })
 }
+
 /**
  * Create Shipment
  * @param {string} posUuidd - POS UUID reference
@@ -1035,13 +1029,15 @@ export function daleteCustomerBankAccounts({
 export function createShipment({
   posUuid,
   orderUuid,
-  salesRepresentativeUuid
+  salesRepresentativeUuid,
+  isCreateLinesFromOrder
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/create-shipment`,
     method: 'post',
     data: {
       pos_uuid: posUuid,
+      is_create_lines_from_order: isCreateLinesFromOrder,
       order_uuid: orderUuid,
       sales_representative_uuid: salesRepresentativeUuid
     }
@@ -1050,6 +1046,7 @@ export function createShipment({
       return camelizeObjectKeys(responseShipment)
     })
 }
+
 export function RefundReferenceRequest({
   posUuid,
   description,
@@ -1092,6 +1089,7 @@ export function RefundReferenceRequest({
       return camelizeObjectKeys(responseCreateCustomerBankAccount)
     })
 }
+
 export function listRefundReference({
   posUuid,
   customerUuid,
@@ -1110,13 +1108,16 @@ export function listRefundReference({
       return camelizeObjectKeys(responseCreateCustomerBankAccount)
     })
 }
+
 export function deleteRefundReference({
+  posUuid,
   uuid
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/delete-payment-reference`,
-    method: 'post',
-    data: {
+    method: 'delete',
+    params: {
+      pos_uuid: posUuid,
       uuid
     }
   })
@@ -1132,15 +1133,19 @@ export function deleteRefundReference({
  * @param {string} salesRepresentativeUuid - Sales Representative UUID reference
  */
 export function createShipmentLine({
+  posUuid,
   shipmentUuid,
-  orderLineUuid
+  orderLineUuid,
+  quantity
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/create-shipment-line`,
     method: 'post',
     data: {
+      pos_uuid: posUuid,
       shipment_uuid: shipmentUuid,
-      order_line_uuid: orderLineUuid
+      order_line_uuid: orderLineUuid,
+      quantity: quantity
     }
   })
     .then(responseShipmentLine => {
@@ -1150,12 +1155,14 @@ export function createShipmentLine({
 
 // Delete Shipment
 export function deleteShipment({
+  posUuid,
   shipmentLineUuid
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/delete-shipment-line`,
-    method: 'post',
-    data: {
+    method: 'delete',
+    params: {
+      pos_uuid: posUuid,
       shipment_line_uuid: shipmentLineUuid
     }
   })
@@ -1166,12 +1173,14 @@ export function deleteShipment({
 
 // List Shipment
 export function shipments({
+  posUuid,
   shipmentUuid
 }) {
   return request({
     url: `${config.pointOfSales.endpoint}/shipment-lines`,
     method: 'get',
     params: {
+      pos_uuid: posUuid,
       shipment_uuid: shipmentUuid
     }
   })
@@ -1190,8 +1199,8 @@ export function shipments({
  * req.body.document_action - Sales Representative UUID reference
  * Details:
  */
-
 export function processShipment({
+  posUuid,
   shipmentUuid,
   description
 }) {
@@ -1199,6 +1208,7 @@ export function processShipment({
     url: `${config.pointOfSales.endpoint}/process-shipment`,
     method: 'post',
     data: {
+      pos_uuid: posUuid,
       shipment_uuid: shipmentUuid,
       description,
       document_action: 'CO'
@@ -1219,7 +1229,6 @@ export function processShipment({
  * req.body.description - POS UUID description
  * Details:
  */
-
 export function reverseSales({
   posUuid,
   orderUuid,
@@ -1268,7 +1277,6 @@ export function listDiscount({
  * req.body.description - POS UUID description
  * Details:
  */
-
 export function cashOpening({
   posUuid,
   collectingAgentUuid,
@@ -1300,7 +1308,6 @@ export function cashOpening({
  * req.body.description - POS UUID description
  * Details:
  */
-
 export function cashWithdrawal({
   posUuid,
   collectingAgentUuid,
@@ -1355,6 +1362,7 @@ export function cashClosing({
       return response
     })
 }
+
 export function allocateSeller({
   posUuid,
   salesRepresentativeUuid
@@ -1371,6 +1379,7 @@ export function allocateSeller({
       return response
     })
 }
+
 export function deallocate({
   posUuid,
   salesRepresentativeUuid
@@ -1387,6 +1396,7 @@ export function deallocate({
       return response
     })
 }
+
 export function releaseOrder({
   posUuid,
   salesRepresentativeUuid,
@@ -1444,6 +1454,172 @@ export function availableSellers({
     params: {
       pos_uuid: posUuid,
       is_only_allocated: isOnlyAllocated
+    }
+  })
+    .then(response => {
+      return camelizeObjectKeys(response)
+    })
+}
+
+export function availableCash({
+  posUuid
+}) {
+  return request({
+    url: `${config.pointOfSales.endpoint}/available-cash`,
+    method: 'get',
+    params: {
+      pos_uuid: posUuid
+    }
+  })
+    .then(response => {
+      return camelizeObjectKeys(response)
+    })
+}
+
+export function listStocks({
+  posUuid,
+  value,
+  sku
+}) {
+  return request({
+    url: `${config.pointOfSales.endpoint}/stocks`,
+    method: 'get',
+    params: {
+      pos_uuid: posUuid,
+      value,
+      sku
+    }
+  })
+    .then(response => {
+      return camelizeObjectKeys(response)
+    })
+}
+
+/**
+ * GET List Banks
+ * req.query.token - user token
+ * req.query.pos_uuid - POS UUID
+ * req.query.search_value - search value
+ * req.query.page_size - custom page size for batch
+ * req.query.page_token - specific page token
+ */
+export function banks({
+  posUuid,
+  searchValue,
+  pageSize = RECORD_ROWS_BY_LIST,
+  pageToken
+}) {
+  return request({
+    url: `${config.pointOfSales.endpoint}/banks`,
+    method: 'get',
+    params: {
+      pos_uuid: posUuid,
+      search_value: searchValue,
+      page_size: pageSize,
+      page_token: pageToken
+    }
+  })
+    .then(response => {
+      return {
+        nextPageToken: response.next_page_token,
+        recordCount: response.record_count,
+        records: response.records.map(bank => {
+          return camelizeObjectKeys(bank)
+        })
+      }
+    })
+}
+
+/**
+ * GET List Banks
+ * req.query.token - user token
+ * req.query.pos_uuid - POS UUID
+ * req.query.search_value - search value
+ * req.query.page_size - custom page size for batch
+ * req.query.page_token - specific page token
+ */
+export function campaigns({
+  posUuid,
+  searchValue,
+  pageSize = RECORD_ROWS_BY_LIST,
+  pageToken
+}) {
+  return request({
+    url: `${config.pointOfSales.endpoint}/campaigns`,
+    method: 'get',
+    params: {
+      pos_uuid: posUuid,
+      search_value: searchValue,
+      page_size: pageSize,
+      page_token: pageToken
+    }
+  })
+    .then(response => {
+      return {
+        nextPageToken: response.next_page_token,
+        recordCount: response.record_count,
+        records: response.records.map(bank => {
+          return camelizeObjectKeys(bank)
+        })
+      }
+    })
+}
+
+/**
+ * GET List Cash Movements
+ */
+export function listCashMovements({
+  posUuid,
+  customerUuid,
+  salesRepresentativeUuid
+}) {
+  return request({
+    url: `${config.pointOfSales.endpoint}/cash-movements`,
+    method: 'get',
+    params: {
+      pos_uuid: posUuid,
+      cuatomer_uuid: customerUuid,
+      sales_representative_uuid: salesRepresentativeUuid
+    }
+  })
+    .then(response => {
+      return camelizeObjectKeys(response)
+    })
+}
+
+export function copyOrder({
+  posId,
+  orderId,
+  salesRepresentativeId
+}) {
+  return request({
+    url: `${config.pointOfSales.endpoint}/order/copy-order`,
+    method: 'post',
+    data: {
+      pos_id: posId,
+      source_order_id: orderId,
+      sales_representative_id: salesRepresentativeId
+    }
+  })
+    .then(response => {
+      return camelizeObjectKeys(response)
+    })
+}
+
+export function listCreditMemoRequest({
+  posId,
+  customerId,
+  pageSize = RECORD_ROWS_BY_LIST,
+  documentTypeId
+}) {
+  return request({
+    url: `${config.pointOfSales.endpoint}/credit-memo/list`,
+    method: 'get',
+    params: {
+      pos_id: posId,
+      customer_id: customerId,
+      page_size: pageSize,
+      document_type_id: documentTypeId
     }
   })
     .then(response => {

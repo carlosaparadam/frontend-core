@@ -1,9 +1,40 @@
+<!--
+  ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+  Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+  Contributor(s): Elsio Sanchez elsiosanches@gmail.com www.erpya.com https://github.com/elsiosanchez
+  Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https:www.gnu.org/licenses/>.
+-->
+
 <template>
-  <div class="login-container">
-    <el-form ref="loginForm" :model="loginForm" :rules="loginRules" class="login-form" autocomplete="on" label-position="left">
+  <div
+    class="login-container"
+  >
+    <el-form
+      ref="loginForm"
+      :model="loginForm"
+      :rules="loginRules"
+      class="login-form"
+      autocomplete="on"
+      label-position="left"
+    >
       <el-row>
-        <el-col :span="3">
-          <img src="https://avatars1.githubusercontent.com/u/1263359?s=200&v=4" class="image">
+        <el-col :span="11" :offset="5">
+          <img
+            :src="logo"
+            class="image"
+          >
         </el-col>
         <el-col :span="20">
           <div class="title-container">
@@ -22,15 +53,16 @@
         <el-input
           ref="userName"
           v-model="loginForm.userName"
-          :placeholder="$t('login.userName')"
+          :placeholder="$t('page.login.userName')"
           name="userName"
           type="text"
           tabindex="1"
           autocomplete="on"
+          @keyup.enter.native="jumpToPassword"
         />
       </el-form-item>
 
-      <el-tooltip v-model="capsTooltip" :content="$t('login.capsLock')" placement="right" manual>
+      <el-tooltip v-model="isCapsTooltip" :content="$t('page.login.capsLock')" placement="right" manual>
         <el-form-item prop="password">
           <span class="svg-container">
             <svg-icon icon-class="password" />
@@ -45,7 +77,7 @@
             tabindex="2"
             autocomplete="on"
             @keyup.native="checkCapslock"
-            @blur="capsTooltip = false"
+            @blur="isCapsTooltip = false"
             @keyup.enter.native="handleLogin"
           />
           <span class="show-pwd" @click="showPwd">
@@ -53,8 +85,31 @@
           </span>
         </el-form-item>
       </el-tooltip>
-      <el-button :loading="loading" type="primary" style="width:100%" @click.native.prevent="handleLogin">
+      <el-button
+        :loading="loading || isLoadingLogin"
+        type="primary"
+        style="width:100%;"
+        @click.native.prevent="handleLogin"
+      >
         {{ $t('login.logIn') }}
+      </el-button>
+      <el-button
+        v-for="(serviceItem, key) in listServices"
+        :key="key"
+        :loading="isLoadingLogin"
+        :disabled="isLoadingLogin"
+        style="width:100%;margin: 10px;display: flex;margin-left: 0px;"
+      >
+        <el-link
+          :underline="false"
+          :href="serviceItem.authorization_uri"
+          style="margin-left: 5px;"
+        >
+          <p style="width:400px;margin: 0px;">
+            <svg-icon :icon-class="serviceItem.svg" />
+            {{ serviceItem.display_name }}
+          </p>
+        </el-link>
       </el-button>
       <el-button
         type="text"
@@ -94,24 +149,38 @@
 </template>
 
 <script>
+// Components and Mixins
 import loginMixin from './loginMixin.js'
 import SocialSign from './components/SocialSignin'
 
+// API Request Methods
+import { requestServices } from '@/api/ADempiere/security/index.ts'
+
+// Utils and Helper Methods
+import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
+
 export default {
   name: 'Login',
-  components: { SocialSign },
-  mixins: [loginMixin],
+
+  components: {
+    SocialSign
+  },
+
+  mixins: [
+    loginMixin
+  ],
+
   data() {
     const validateUsername = (rule, value, callback) => {
       if ((value.trim()).length < 1) {
-        callback(new Error(this.$t('login.noValidUser')))
+        callback(new Error(this.$t('page.login.noValidUser')))
       } else {
         callback()
       }
     }
     const validatePassword = (rule, value, callback) => {
       if (value.length < 1) {
-        callback(new Error(this.$t('login.noValidPassword')))
+        callback(new Error(this.$t('page.login.noValidPassword')))
       } else {
         callback()
       }
@@ -128,14 +197,27 @@ export default {
         password: [{ required: true, trigger: 'blur', validator: validatePassword }]
       },
       passwordType: 'password',
-      capsTooltip: false,
+      isCapsTooltip: false,
       loading: false,
       showDialog: false,
       redirect: undefined,
       otherQuery: {},
+      listServices: {},
+      isLoadingLogin: false,
       default: 'dashboard'
     }
   },
+
+  computed: {
+    logo() {
+      const { logoUrl } = this.$store.getters['user/getSystem']
+      if (logoUrl) {
+        return logoUrl
+      }
+      return 'https://avatars1.githubusercontent.com/u/1263359?s=200&v=4'
+    }
+  },
+
   watch: {
     $route: {
       handler: function(route) {
@@ -148,23 +230,33 @@ export default {
       immediate: true
     }
   },
+
   created() {
-    // window.addEventListener('storage', this.afterQRScan)
-  },
-  mounted() {
-    if (this.loginForm.userName === '') {
-      this.$refs.userName.focus()
-    } else if (this.loginForm.password === '') {
-      this.$refs.password.focus()
+    this.initialBasicServices()
+    const { search } = window.location
+    if (!isEmptyValue(search)) {
+      const urlParams = new URLSearchParams(search)
+      const state = urlParams.get('state')
+      const code = urlParams.get('code')
+      if (!isEmptyValue(state) && !isEmptyValue(code)) {
+        this.loginAuthentication({
+          state,
+          code
+        })
+      }
     }
   },
-  destroyed() {
-    // window.removeEventListener('storage', this.afterQRScan)
-  },
+
   methods: {
     checkCapslock(e) {
       const { key } = e
-      this.capsTooltip = key && key.length === 1 && (key >= 'A' && key <= 'Z')
+      this.isCapsTooltip = key &&
+        key.length === 1 &&
+        key >= 'A' &&
+        key <= 'Z'
+    },
+    jumpToPassword() {
+      this.$refs.password.focus()
     },
     handleLogin() {
       const query = this.$route.query.redirect
@@ -172,8 +264,8 @@ export default {
       if (!this.isEmptyValue(query)) {
         this.loginForm = {
           ...this.loginForm,
-          roleUuid: this.clientIdRedirect(query, expr),
-          organizationUuid: this.organizationIdRedirect(query, expr)
+          roleId: this.clientIdRedirect(query, expr),
+          organizationId: this.organizationIdRedirect(query, expr)
         }
       }
       this.$refs.loginForm.validate(valid => {
@@ -183,13 +275,16 @@ export default {
             .then(() => {
               this.$router.push({
                 path: this.redirect || '/',
-                query: this.otherQuery
+                query: {
+                  ...this.otherQuery,
+                  action: this.$route.query.recordUuid
+                }
               }, () => {})
             })
             .catch(error => {
-              let message = this.$t('login.unexpectedError')
+              let message = this.$t('page.login.unexpectedError')
               if ([13, 500].includes(error.code)) {
-                message = this.$t('login.invalidLogin')
+                message = this.$t('page.login.invalidLogin')
               }
 
               this.$message.error(message)
@@ -216,17 +311,124 @@ export default {
       if (redirect[1] === this.default) {
         return
       }
-      return redirect[1]
+      return redirect[2]
     },
     organizationIdRedirect(query, expr) {
       const redirect = query.split(expr)
-      return redirect[2]
+      return redirect[3]
+    },
+    svgService(openId) {
+      const { display_name } = openId
+      let svg = ''
+      switch (true) {
+        case display_name.includes('microsoftonline'):
+          svg = 'microsoft'
+          break
+        case display_name.includes('google'):
+          svg = 'google-gmail'
+          break
+        case display_name.includes('github'):
+          svg = 'github'
+          break
+        case display_name.includes('gitlab'):
+          svg = 'gitlab'
+          break
+        case display_name.includes('discord'):
+          svg = 'discord'
+          break
+        case display_name.includes('KeyCloak'):
+          svg = 'keycloak'
+          break
+      }
+      return svg
+    },
+    loginAuthentication({ state, code }) {
+      const query = this.$route.query.redirect
+      const expr = '/'
+      if (!this.isEmptyValue(query)) {
+        this.loginForm = {
+          ...this.loginForm,
+          roleId: this.clientIdRedirect(query, expr),
+          organizationId: this.organizationIdRedirect(query, expr)
+        }
+      }
+      this.isLoadingLogin = true
+      this.$store.dispatch('user/loginOpenId', {
+        state,
+        code
+      })
+        .then(() => {
+          this.$router.push({
+            path: this.redirect || '/',
+            query: {
+              ...this.otherQuery,
+              action: this.$route.query.recordUuid
+            }
+          }, this.cleanPath())
+        })
+        .catch(error => {
+          this.cleanPath()
+          let message = this.$t('page.login.unexpectedError')
+          if ([13, 500].includes(error.code)) {
+            message = this.$t('page.login.invalidLogin')
+          }
+
+          this.$message.error(message)
+        })
+        .finally(() => {
+          // this.cleanPath()
+          this.isLoadingLogin = false
+        })
+    },
+    cleanPath() {
+      const href = window.location.href
+      if (!href.includes('state=')) {
+        return
+      }
+      const index = href.indexOf('state=')
+      if (index < 0) {
+        return
+      }
+      let newLocation = href.substring(0, index)
+      if (newLocation.endsWith('?')) {
+        newLocation = newLocation.substring(0, newLocation.length - 1)
+      }
+      window.location.href = newLocation
+    },
+    initialBasicServices() {
+      this.listAuthorization()
+      this.info()
+    },
+    listAuthorization() {
+      requestServices()
+        .then(response => {
+          if (!response) {
+            return
+          }
+          const { services } = response
+          this.listServices = services.map(serviceItem => {
+            return {
+              ...serviceItem,
+              svg: this.svgService(serviceItem)
+            }
+          })
+        })
+        .catch(error => {
+          console.info(error)
+        })
+    },
+    info() {
+      this.$store.dispatch('user/system')
     }
   }
 }
 </script>
 
 <style lang="scss">
+.image {
+  // width: 80px;
+  height: 110px;
+}
 /* 修复input 背景不协调 和光标变色 */
 /* Detail see https://github.com/PanJiaChen/vue-element-admin/pull/927 */
 
@@ -250,7 +452,6 @@ $cursor: #fff;
     input {
       background: transparent;
       border: 0px;
-      -webkit-appearance: none;
       border-radius: 0px;
       padding: 12px 5px 12px 15px;
       color: $light_gray;
@@ -319,9 +520,10 @@ $light_gray:#eee;
     .title {
       font-size: 26px;
       color: $light_gray;
-      margin: 10px auto 40px auto;
+      margin: 10px auto 20px auto;
       text-align: center;
       font-weight: bold;
+      padding-right: 10px;
     }
 
     .set-language {

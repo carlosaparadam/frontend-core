@@ -72,23 +72,7 @@ export default {
   getListRefund: (state) => {
     return state.listRefund
   },
-  /**
-   * Product Price Getters
-   * List Product
-   * Search Product
-   */
-  getProductPrice: (state) => {
-    if (isEmptyValue(state.productPrice)) {
-      return {
-        ...withoutResponse,
-        productPricesList: []
-      }
-    }
-    return state.productPrice
-  },
-  getSearchProduct: (state) => {
-    return state.searchProduct
-  },
+
   /**
    * visibility of point of sale panels
    * Show Panel Options the Point Of Sales
@@ -166,7 +150,49 @@ export default {
   getShowList: (state) => {
     return state.listOrder.isShowPopover
   },
+  getIsShowResource: (state) => {
+    return state.isShowResource
+  },
   getNewCustomer: (state) => {
     return state.newCustomer
+  },
+  getListWarehouseLine: (state) => {
+    return state.listWarehouse
+  },
+  getProcessLoading: (state) => {
+    return state.isLoadingProcess
+  },
+  getLoadingCashOpen: (state) => {
+    return state.isLoadingCashOpen
+  },
+  getLoadingCashWithdrawal: (state) => {
+    return state.isLoadingCashWithdrawal
+  },
+  getLoadingCashClosing: (state) => {
+    return state.isLoadingCashClosing
+  },
+  getShowSummaryCashOpen: (state) => {
+    return state.isShowSummaryCashOpen
+  },
+  getSummaryCashOpen: (state) => {
+    return state.summaryCashOpen
+  },
+  getShowSummaryCashClose: (state) => {
+    return state.isShowSummaryCashClose
+  },
+  getSummaryCashClose: (state) => {
+    return state.summaryCashClose
+  },
+  getShowSummaryReverseOrder: (state) => {
+    return state.isShowSummaryReverseOrder
+  },
+  getSummaryReverseOrder: (state) => {
+    return state.summaryReverseOrder
+  },
+  // getShowConfirmDelivery: (state) => {
+  //   return state.isShowConfirmDelivery
+  // },
+  getSummaryConfirmDelivery: (state) => {
+    return state.summaryConfirmDelivery
   }
 }

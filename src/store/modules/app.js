@@ -1,5 +1,11 @@
 import Cookies from 'js-cookie'
+
+// API Request Methods
+import { setSessionAttribute } from '@/api/ADempiere/security/index.ts'
+
+// Utils and Helper Methods
 import { getLanguage } from '@/lang/index'
+import { setToken } from '@/utils/auth'
 
 const state = {
   sidebar: {
@@ -50,7 +56,21 @@ const actions = {
     commit('TOGGLE_DEVICE', device)
   },
   setLanguage({ commit }, language) {
-    commit('SET_LANGUAGE', language)
+    return new Promise(resolve => {
+      setSessionAttribute({ language })
+        .then(response => {
+          const { token } = response
+          commit('SET_TOKEN', token)
+          setToken(token)
+          resolve(language)
+        })
+        .catch(error => {
+          console.warn(` Error getting Language ${error}`)
+        })
+        .finally(() => {
+          commit('SET_LANGUAGE', language)
+        })
+    })
   },
   setSize({ commit }, size) {
     commit('SET_SIZE', size)

@@ -1,220 +1,230 @@
 <!--
- ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
- Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
- Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com www.erpya.com
- This program is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
+  ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+  Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+  Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
- This program is distributed in the hope that it will be useful,
- but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- GNU General Public License for more details.
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+  GNU General Public License for more details.
 
- You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https:www.gnu.org/licenses/>.
+  You should have received a copy of the GNU General Public License
+  along with this program. If not, see <https:www.gnu.org/licenses/>.
 -->
+
 <template>
-  <el-container
-    v-if="isLoaded"
-    key="form-loaded"
-    :class="showNavar ? 'view-base' : 'show-header-view-base'"
-    style="height: 84vh;"
-  >
-    <el-header
-      v-if="showContextMenu"
-      style="height: 39px; background: white;"
-    >
-      <!-- TODO: Add action menu -->
+  <div style="height: 100%;">
+    <div v-if="isLoadedMetadata" class="panel-forms">
+      <div :class="classTitle">
+        <title-and-help
+          v-if="isShowTitleForm && !isVisibleShowButton"
+          :name="formName"
+          :help="formMetadata.help"
+        >
+          <el-button
+            type="text"
+            style="float: right; z-index: 5"
+            :circle="true"
+            icon="el-icon-arrow-up"
+            @click="changeDisplatedTitle"
+          />
+        </title-and-help>
+        <el-button
+          v-if="!isShowTitleForm && !isVisibleShowButton"
+          type="text"
+          style="position: absolute; right: 10px;z-index: 5;"
+          :circle="true"
+          icon="el-icon-arrow-down"
+          @click="changeDisplatedTitle"
+        />
+      </div>
+      <div class="panel">
+        <form-defintion
+          :metadata="{
+            ...formMetadata,
+            fileName: formFileName,
+            title: formName
+          }"
+        />
+      </div>
+    </div>
 
-      <modal-dialog
-        :parent-uuid="$route.meta.parentUuid"
-        :container-uuid="formUuid"
-        :panel-type="panelType"
-      />
-    </el-header>
-    <el-main style="padding-right: 0px !important; padding-bottom: 0px !important;padding-top: 0px !important;padding-left: 0px !important;">
-      <el-row>
-        <el-col :span="24">
-          <el-card
-            class="content-collapse"
-            :style="isEmptyValue(formMetadata.fieldsList) ? 'height: 100% !important;' : ''"
-          >
-            <title-and-help
-              v-if="isShowTitleForm"
-              :name="formName"
-              :help="formMetadata.help"
-            >
-              <el-button
-                type="text"
-                style="float: right; z-index: 5"
-                :circle="true"
-                icon="el-icon-arrow-up"
-                @click="changeDisplatedTitle"
-              />
-            </title-and-help>
-            <el-button
-              v-if="!isShowTitleForm"
-              type="text"
-              style="position: absolute; right: 10px;"
-              :circle="true"
-              icon="el-icon-arrow-down"
-              @click="changeDisplatedTitle"
-            />
-
-            <form-panel
-              :metadata="{
-                ...formMetadata,
-                fileName: formFileName,
-                title: formName
-              }"
-            />
-          </el-card>
-        </el-col>
-      </el-row>
-    </el-main>
-  </el-container>
-
-  <loading-view
-    v-else
-    key="form-loading"
-  />
+    <loading-view
+      v-else
+      key="form-loading"
+    />
+  </div>
 </template>
 
 <script>
-// components and mixins
-import FormPanel from '@theme/components/ADempiere/Form'
-import LoadingView from '@theme/components/ADempiere/LoadingView/index.vue'
-import ModalDialog from '@theme/components/ADempiere/Dialog'
-import TitleAndHelp from '@theme/components/ADempiere/TitleAndHelp'
+import { defineComponent, computed, ref } from '@vue/composition-api'
 
-export default {
+import router from '@/router'
+import store from '@/store'
+
+// Components and Mixins
+import FormDefintion from '@/components/ADempiere/FormDefinition'
+import LoadingView from '@/components/ADempiere/LoadingView/index.vue'
+import TitleAndHelp from '@/components/ADempiere/TitleAndHelp'
+
+// Utils and Helper Methods
+import { isEmptyValue, getValidInteger } from '@/utils/ADempiere'
+
+export default defineComponent({
   name: 'FormView',
 
   components: {
-    FormPanel,
+    FormDefintion,
     LoadingView,
-    ModalDialog,
     TitleAndHelp
   },
 
-  data() {
-    return {
-      formUuid: this.$route.meta.uuid,
-      formMetadata: {},
-      isLoaded: false,
-      panelType: 'form'
-    }
-  },
+  setup() {
+    const currentRoute = router.app._route
 
-  computed: {
-    formName() {
-      if (this.$route.meta.title === 'PriceChecking') {
-        return this.$t('route.PriceChecking')
-      } else if (this.$route.meta.title === 'ProductInfo') {
-        return this.$t('route.ProductInfo')
+    const isLoadedMetadata = ref(false)
+    const formMetadata = ref({
+      id: -1,
+      uuid: '',
+      name: '',
+      description: '',
+      help: '',
+      access_level: 0,
+      file_name: '',
+      isActive: false
+    })
+
+    const formId = getValidInteger(currentRoute.meta.id, true)
+    const formUuid = currentRoute.meta.uuid
+
+    const storedForm = computed(() => {
+      return store.getters.getStoredForm(formUuid)
+    })
+
+    const formName = computed(() => {
+      if (!isEmptyValue(formMetadata.value) && !isEmptyValue(formMetadata.value.name)) {
+        return formMetadata.value.name
       }
-      return this.formMetadata.name
-    },
-    formFileName() {
-      return this.formMetadata.fileName || this.$route.meta.title
-    },
-    getterForm() {
-      return this.$store.getters.getForm(this.formUuid)
-    },
-    showContextMenu: {
-      get() {
-        return this.$store.state.settings.showContextMenu
-      },
-      set(val) {
-        this.$store.dispatch('settings/changeSetting', {
-          key: 'showContextMenu',
-          value: val
-        })
+      return currentRoute.meta.title
+    })
+
+    const formFileName = computed(() => {
+      if (!isEmptyValue(formMetadata.value) && !isEmptyValue(formMetadata.value.file_name)) {
+        return formMetadata.value.file_name
       }
-    },
-    showNavar() {
-      return this.$store.state.settings.showNavar
-    },
-    isShowTitleForm() {
-      return this.$store.getters.getIsShowTitleForm
+      if (!isEmptyValue(currentRoute.meta.fileName)) {
+        return currentRoute.meta.fileName
+      }
+      return currentRoute.meta.title
+    })
+
+    const isVisibleShowButton = computed(() => {
+      return store.state.app.device === 'mobile'
+    })
+
+    const isShowTitleForm = computed(() => {
+      return store.getters.getIsShowTitleForm
+    })
+
+    const styleHeight = computed(() => {
+      // if (formFileName.value === 'WFActivity') {
+      //   return 'height: 90vh;overflow: auto;'
+      // }
+      return 'height: 100% !important;overflow: auto;'
+    })
+
+    const classTitle = computed(() => {
+      if (isShowTitleForm.value && !isVisibleShowButton.value) return 'title-form'
+      return 'title-form-hidden'
+    })
+
+    function changeDisplatedTitle() {
+      store.commit('changeShowTitleForm', !isShowTitleForm.value)
     }
-  },
 
-  created() {
-    this.getForm()
-  },
-
-  methods: {
-    changeDisplatedTitle() {
-      this.$store.commit('changeShowTitleForm', !this.isShowTitleForm)
-    },
-    getForm() {
-      const panel = this.getterForm
-      if (panel) {
-        this.formMetadata = panel
-        this.isLoaded = true
+    function getForm() {
+      const panel = storedForm.value
+      if (!isEmptyValue(panel)) {
+        formMetadata.value = panel
+        isLoadedMetadata.value = true
       } else {
-        this.$store.dispatch('getPanelAndFields', {
-          containerUuid: this.formUuid,
-          panelType: this.panelType,
-          routeToDelete: this.$route
+        if (formId <= 0) {
+          isLoadedMetadata.value = true
+          return
+        }
+        store.dispatch('getFormFromServer', {
+          // id: formId,
+          id: formUuid,
+          routeToDelete: currentRoute
         })
           .then(responseForm => {
-            this.formMetadata = responseForm
+            formMetadata.value = responseForm
           })
           .finally(() => {
-            this.isLoaded = true
+            isLoadedMetadata.value = true
           })
       }
     }
+
+    getForm()
+
+    return {
+      isLoadedMetadata,
+      formId,
+      formMetadata,
+      // Computeds
+      formFileName,
+      formName,
+      isShowTitleForm,
+      classTitle,
+      isVisibleShowButton,
+      styleHeight,
+      // Methods
+      changeDisplatedTitle
+    }
   }
-}
+})
 </script>
 
-<style>
+<style lang="scss">
+.form-view {
+  .form-loaded {
+    height: inherit;
+  }
   .el-card__body {
     padding-top: 0px !important;
     padding-right: 0px !important;
     padding-bottom: 2px !important;
     padding-left: 0px !important;
-    height: 100%!important;
+    /* height: 100%!important; */
   }
+}
+.panel-forms {
+  height: 100%;
+  .title-form {
+    height: 5%;
+  }
+  .title-form-hidden {
+    height: 2%;
+  }
+  .panel {
+    height: 95%;
+  }
+}
 </style>
-<style scoped >
-  .el-row {
-    position: relative;
-    -webkit-box-sizing: border-box;
-    box-sizing: border-box;
-    height: 100%!important;
-  }
-  .el-col-24 {
-    width: 100%;
-    height: 100%!important;
-  }
 
-  .view-base {
-    /** Add this rule to view base */
-    overflow: hidden;
-  }
-  .show-header-view-base {
-    height: 100%;
-    min-height: calc(100vh - 26px);
-    overflow: hidden;
-  }
-
-  .w-33 {
-    width: 100%;
-    background-color: transparent;
-  }
-
-  .el-card {
-    width: 100% !important;
-    height: 100% !important;
-  }
-
-  .center{
-    text-align: center;
+<style lang="scss" scoped>
+  .content-collapse {
+    /* height: 100%!important; */
+    display: contents;
+    .el-card{
+      .el-card__body{
+         height: 100%;
+      }
+    }
   }
 </style>

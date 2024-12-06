@@ -1,24 +1,35 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Elsio Sanchez esanchez@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Elsio Sanchez elsiosanchez15@outlook.com https://github.com/elsiosanchez
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+// API Request Methods
 import {
-  listOrderLines
+  listOrderLines,
+  listStocks
 } from '@/api/ADempiere/form/point-of-sales.js'
+import {
+  listProductConversionsRequest
+} from '@/api/ADempiere/system-core'
+
+// Utils and Helper Methods
+import { formatQuantity } from '@/utils/ADempiere/formatValue/numberFormat'
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 import { showMessage } from '@/utils/ADempiere/notification.js'
+
 /**
  * Order Line Actions
  */
@@ -26,11 +37,13 @@ export default {
   listOrderLine({ commit }, params) {
     commit('setListOrderLine', params)
   },
-  listOrderLinesFromServer({ commit }, orderUuid) {
+  listOrderLinesFromServer({ commit, rootGetters }, orderUuid) {
     if (isEmptyValue(orderUuid)) {
       return
     }
+    const posUuid = rootGetters.posAttributes.currentPointOfSales.uuid
     listOrderLines({
+      posUuid,
       orderUuid
     })
       .then(response => {
@@ -38,6 +51,7 @@ export default {
           return {
             ...lineItem,
             quantityOrdered: lineItem.quantity,
+            quantityOrderedLine: lineItem.quantityOrdered,
             priceActual: lineItem.price,
             discount: lineItem.discountRate,
             product: {
@@ -45,6 +59,7 @@ export default {
               priceStandard: lineItem.price,
               help: lineItem.help
             },
+            isloadedLine: false,
             taxIndicator: lineItem.taxRate.taxIndicator,
             grandTotal: lineItem.lineNetAmount
           }
@@ -60,9 +75,11 @@ export default {
         })
       })
   },
-  updateOrderLines({ commit, rootGetters }, params) {
+  updateOrderLines({ commit, state, getters, rootGetters }, params) {
     // const line = rootGetters.getListOrderLine
     const line = rootGetters.posAttributes.currentPointOfSales.currentOrder.lineOrder
+    const isProcessLoading = rootGetters.getProcessLoading
+    if (isProcessLoading) return
     const found = line.map(element => {
       if (element.uuid === params.uuid) {
         return {
@@ -91,5 +108,83 @@ export default {
   },
   currentLine({ commit }, currentLine) {
     commit('setLine', currentLine)
+  },
+  findWarehouse({ commit, rootGetters }, {
+    posUuid,
+    value,
+    sku
+  }) {
+    if (isEmptyValue(posUuid)) posUuid = rootGetters.posAttributes.currentPointOfSales.uuid
+    return listStocks({
+      posUuid,
+      value,
+      sku
+    })
+      .then(response => {
+        const list = response.stocks.map(stock => {
+          return {
+            label: stock.warehouse_name,
+            id: stock.warehouse_id,
+            uuid: stock.warehouse_uuid,
+            attributeName: stock.attribute_name,
+            qty: stock.qty,
+            sumaryQty: []
+          }
+        })
+        const options = []
+
+        list.forEach(element => {
+          if (isEmptyValue(options)) {
+            options.push({
+              ...element
+            })
+          }
+          const currentStock = options.find(stock => stock.id === element.id)
+          const index = options.findIndex(stock => stock.id === element.id)
+          if (!isEmptyValue(currentStock) && !isEmptyValue(options)) {
+            options[index].qty = currentStock.qty + element.qty
+            options[index].sumaryQty.push(element.qty)
+          }
+          if (isEmptyValue(currentStock)) {
+            options.push({
+              ...element,
+              sumaryQty: [element.qty]
+            })
+          }
+        })
+        const listStock = options.map(list => {
+          const sumaryQty = list.sumaryQty.reduce((a, b) => a + b, 0)
+
+          return {
+            ...list,
+            sumaryQty: formatQuantity({
+              value: sumaryQty
+            })
+          }
+        })
+        commit('setListWarehouse', listStock)
+      })
+      .catch(error => {
+        commit('setListWarehouse', [])
+        console.warn(`-List Warehouse Error ${error.code}: ${error.message}.`)
+      })
+  },
+  findUom({ commit, rootGetters }, {
+    productId
+  }) {
+    const posUuid = rootGetters.posAttributes.currentPointOfSales.uuid
+    return listProductConversionsRequest({
+      posUuid,
+      productId
+    })
+      .then(response => {
+        return response
+      })
+      .catch(error => {
+        console.warn(`-List Uom Error ${error.code}: ${error.message}.`)
+      })
+  },
+  changeLoadedLine({ commit }, isLoaded) {
+    commit('setIsloadedLine', isLoaded)
   }
 }

@@ -2,10 +2,13 @@
   <div v-if="verifyToken()" class="login-container">
     <el-form ref="changePasswordForm" :rules="passwordResetRules" :model="changePasswordForm" class="login-form" auto-complete="off" label-position="left">
       <el-row>
-        <el-col :span="3">
-          <img src="https://avatars1.githubusercontent.com/u/1263359?s=200&v=4" class="image">
+        <el-col :span="4">
+          <img
+            :src="logo"
+            style="width: 100px;height: 80px;"
+          >
         </el-col>
-        <el-col :span="20">
+        <el-col :span="20" style="margin-top: 15px;">
           <div class="title-container">
             <h3 class="title">
               {{ $t(`login.${formName}`) }}
@@ -15,7 +18,7 @@
         </el-col>
       </el-row>
 
-      <el-tooltip v-model="capsTooltip" :content="$t('login.capsLock')" placement="right" auto-complete="off" manual>
+      <el-tooltip v-model="capsTooltip" :content="$t('page.login.capsLock')" placement="right" auto-complete="off" manual>
         <el-form-item prop="password">
           <span class="svg-container">
             <svg-icon icon-class="password" />
@@ -25,7 +28,7 @@
             ref="password"
             v-model="changePasswordForm.password"
             :type="passwordType"
-            :placeholder="$t('login.passwordNew')"
+            :placeholder="$t('page.login.passwordNew')"
             tabindex="1"
             auto-complete="off"
             @keyup.native="checkCapslock"
@@ -37,7 +40,7 @@
         </el-form-item>
       </el-tooltip>
 
-      <el-tooltip v-model="capsTooltipNew" :content="$t('login.capsLock')" placement="right" manual>
+      <el-tooltip v-model="capsTooltipNew" :content="$t('page.login.capsLock')" placement="right" manual>
         <el-form-item prop="passwordConfirm">
           <span class="svg-container">
             <svg-icon icon-class="password" />
@@ -47,7 +50,7 @@
             ref="passwordConfirm"
             v-model="changePasswordForm.passwordConfirm"
             :type="passwordConfirmType"
-            :placeholder="$t('login.passwordConfirmNew')"
+            :placeholder="$t('page.login.passwordConfirmNew')"
             tabindex="2"
             auto-complete="off"
             @keyup.native="checkCapslockNew"
@@ -67,7 +70,7 @@
         style="width:100%;margin-bottom:30px;"
         @click.native.prevent="handleSubmit"
       >
-        {{ $t('login.submit') }}
+        {{ $t('page.login.submit') }}
       </el-button>
 
       <el-button type="text" style="float: left" @click.native.prevent="pathRedirect('login')">
@@ -120,6 +123,13 @@ export default {
   computed: {
     formName() {
       return this.$route.name
+    },
+    logo() {
+      const { logoUrl } = this.$store.getters['user/getSystem']
+      if (logoUrl) {
+        return logoUrl
+      }
+      return 'https://avatars1.githubusercontent.com/u/1263359?s=200&v=4'
     },
     isDisabled() {
       if (this.isEmptyValue(this.changePasswordForm.password)) {
@@ -189,7 +199,7 @@ export default {
             })
           } else {
             this.$message({
-              message: this.$t('login.unexpectedError'),
+              message: this.$t('page.login.unexpectedError'),
               showClose: true,
               type: 'error'
             })
@@ -199,7 +209,7 @@ export default {
         })
         .catch(error => {
           this.$message({
-            message: this.$t('login.unexpectedError'),
+            message: this.$t('page.login.unexpectedError'),
             showClose: true,
             type: 'error'
           })
@@ -311,7 +321,7 @@ $light_gray:#eee;
     .title {
       font-size: 26px;
       color: $light_gray;
-      margin: 10px auto 40px auto;
+      // margin: 10px auto 40px auto;
       text-align: center;
       font-weight: bold;
     }

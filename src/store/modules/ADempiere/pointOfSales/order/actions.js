@@ -1,33 +1,45 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Elsio Sanchez esanchez@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Elsio Sanchez elsiosanchez@gmail.com https://github.com/elsiosanchez
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU General Public License as published by
+* the Free Software Foundation, either version 3 of the License, or
+* (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+import language from '@/lang'
+import router from '@/router'
 
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+// Constants
+import {
+  REPORT_VIEWER_NAME
+} from '@/utils/ADempiere/dictionary/report'
 
-// api request methods
+// API Request Methods
 import {
   createOrder,
   getOrder,
   updateOrder,
   createOrderLine,
   listOrders,
-  printTicket
+  printTicket,
+  printTicketPreviwer
 } from '@/api/ADempiere/form/point-of-sales.js'
 
-// utils and helper methods
+// Utils and Helper Methods
 import { isEmptyValue, convertValuesToSendListOrders } from '@/utils/ADempiere/valueUtils.js'
-import { extractPagingToken } from '@/utils/ADempiere/dataUtils'
+import { extractPagingToken, generatePageToken } from '@/utils/ADempiere/dataUtils'
 import { showMessage } from '@/utils/ADempiere/notification.js'
+import { buildLinkHref } from '@/utils/ADempiere/resource.js'
 
 /**
  * Order Actions
@@ -45,21 +57,23 @@ export default {
     documentTypeUuid,
     warehouseUuid
   }) {
-    const { currentPriceList, currentWarehouse, defaultCampaignUuid } = rootGetters.posAttributes.currentPointOfSales
+    const { currentPriceList, currentWarehouse, priceList, defaultCampaign } = rootGetters.posAttributes.currentPointOfSales
+    const priceListUuid = isEmptyValue(currentPriceList) ? priceList.uuid : currentPriceList.uuid
     return createOrder({
       posUuid,
       customerUuid,
       documentTypeUuid,
       salesRepresentativeUuid: rootGetters['user/getUserUuid'],
-      priceListUuid: currentPriceList.uuid,
+      priceListUuid: priceListUuid,
       warehouseUuid: currentWarehouse.uuid,
-      campaignUuid: defaultCampaignUuid
+      campaignUuid: isEmptyValue(defaultCampaign) ? '' : defaultCampaign.uuid
     })
       .then(order => {
         commit('setOrder', order)
         dispatch('fillOrde', { attribute: order })
 
         commit('setIsReloadListOrders')
+        commit('customer', {})
         return order
       })
       .catch(error => {
@@ -84,12 +98,15 @@ export default {
     documentTypeUuid,
     discountAmount,
     discountRateOff,
+    discountAllLine,
     priceListUuid,
     warehouseUuid,
-    campaignUuid
+    campaignUuid,
+    salesRepresentativeUuid
   }) {
     const isCompleted = rootGetters.posAttributes.currentPointOfSales.currentOrder.isProcessed
-    if (isCompleted) {
+    const isProcessLoading = rootGetters.getProcessLoading
+    if (isCompleted || isProcessLoading) {
       return
     }
     const currentPriceList = isEmptyValue(priceListUuid) ? rootGetters.posAttributes.currentPointOfSales.currentPriceList.uuid : priceListUuid
@@ -99,16 +116,19 @@ export default {
       posUuid,
       documentTypeUuid,
       discountAmount,
+      discount: discountAllLine,
       discountRateOff,
       customerUuid,
       priceListUuid: currentPriceList,
       warehouseUuid: currentWarehouse,
-      campaignUuid
+      campaignUuid,
+      salesRepresentativeUuid
     })
       .then(response => {
         dispatch('reloadOrder', { orderUuid: response.uuid })
       })
       .catch(error => {
+        dispatch('reloadOrder', { orderUuid })
         console.error(error.message)
         showMessage({
           type: 'error',
@@ -129,6 +149,7 @@ export default {
    * @param {number} discountRate DiscountRate Producto
    */
   createOrderLine({ commit, dispatch, rootGetters }, {
+    posUuid,
     orderUuid,
     productUuid,
     chargeUuid,
@@ -137,8 +158,14 @@ export default {
     price,
     discountRate
   }) {
+    if (isEmptyValue(posUuid)) {
+      posUuid = rootGetters.posAttributes.currentPointOfSales.uuid
+    }
+    const isProcessLoading = rootGetters.getProcessLoading
+    if (isProcessLoading) return
     const { currentPriceList, currentWarehouse } = rootGetters.posAttributes.currentPointOfSales
     createOrderLine({
+      posUuid,
       orderUuid,
       priceListUuid: currentPriceList.uuid,
       warehouseUuid: currentWarehouse.uuid,
@@ -170,13 +197,27 @@ export default {
     if (isEmptyValue(orderUuid)) {
       orderUuid = rootGetters.posAttributes.currentPointOfSales.currentOrder.uuid // this.currentOrder.uuid
     }
+    const posUuid = rootGetters.posAttributes.currentPointOfSales.uuid
     if (!isEmptyValue(orderUuid)) {
-      getOrder(orderUuid)
+      getOrder(orderUuid, posUuid)
         .then(orderResponse => {
+          commit('setCurrentPriceList', orderResponse.priceList)
           dispatch('fillOrde', {
             attribute: orderResponse,
             setToStore: false
           })
+          // Establish order in the route
+          const currentRoute = router.app._route
+          // set action
+          router.push({
+            params: {
+              ...currentRoute.params
+            },
+            query: {
+              ...currentRoute.query,
+              action: orderUuid
+            }
+          }, () => {})
           dispatch('currentOrder', orderResponse)
         // dispatch('listOrderLinesFromServer', orderResponse.uuid)
         })
@@ -222,26 +263,20 @@ export default {
    * Set page number of pagination list
    * @param {number}  pageNumber
    */
-  setOrdersListPageNumber({ commit, dispatch }, pageNumber) {
-    commit('setOrdersListPageNumber', pageNumber)
-    dispatch('listOrdersFromServer', {})
-  },
   listOrdersFromServer({ state, commit, getters }, {
-    posUuid
+    posUuid,
+    pageNumber
   }) {
     if (isEmptyValue(posUuid)) {
       posUuid = getters.posAttributes.currentPointOfSales.uuid
     }
 
-    let { pageNumber, token } = state.listOrder
-    if (isEmptyValue(pageNumber)) {
-      pageNumber = 0
+    if (isEmptyValue(pageNumber) || pageNumber <= 0) {
+      // refresh with same page
+      pageNumber = state.listOrder.pageNumber
     }
-    let pageToken
-    if (!isEmptyValue(token)) {
-      const page = pageNumber > 0 ? pageNumber - 1 : 0
-      pageToken = token + '-' + page
-    }
+    const pageToken = generatePageToken({ pageNumber })
+
     let values = getters.getValuesView({
       containerUuid: 'Orders-List'
     })
@@ -267,9 +302,8 @@ export default {
       pageToken
     })
       .then(responseOrdersList => {
-        if (isEmptyValue(token) || isEmptyValue(pageToken)) {
-          token = extractPagingToken(responseOrdersList.nextPageToken)
-        }
+        // TODO: Validate this implementation with extractPagingToken
+        const token = extractPagingToken(responseOrdersList.nextPageToken)
 
         commit('setListOrder', {
           ...responseOrdersList,
@@ -281,9 +315,15 @@ export default {
         })
       })
       .catch(error => {
+        commit('setListOrder', {
+          isLoaded: true,
+          ordersList: [],
+          isReload: false,
+          posUuid
+        })
         console.warn(`listOrdersFromServer: ${error.message}. Code: ${error.code}.`)
         showMessage({
-          type: 'info',
+          type: 'error',
           message: error.message,
           showClose: true
         })
@@ -296,16 +336,17 @@ export default {
   currentOrder({ commit }, findOrder) {
     commit('findOrder', findOrder)
   },
-  findOrderServer({ commit }, orderUuid) {
+  findOrderServer({ commit, rootGetters }, orderUuid) {
     if (typeof orderUuid === 'string' && !isEmptyValue(orderUuid)) {
-      getOrder(orderUuid)
+      const posUuid = rootGetters.posAttributes.currentPointOfSales.uuid
+      getOrder(orderUuid, posUuid)
         .then(responseOrder => {
           commit('findOrder', responseOrder)
         })
         .catch(error => {
           console.warn(`findOrderServer: ${error.message}. Code: ${error.code}.`)
           showMessage({
-            type: 'info',
+            type: 'error',
             message: error.message,
             showClose: true
           })
@@ -313,17 +354,74 @@ export default {
     }
     commit('findOrder', {})
   },
-  printTicket({ commit, dispatch }, { posUuid, orderUuid }) {
-    printTicket({
-      posUuid,
-      orderUuid
+  printTicket({ commit, dispatch, rootGetters }, { posId, orderId }) {
+    const isAllowsPrintDocument = rootGetters.posAttributes.currentPointOfSales.isAllowsPrintDocument
+    if (!isAllowsPrintDocument) {
+      return
+    }
+    return printTicket({
+      posId,
+      orderId
     })
       .then(response => {
+        const {
+          output_stream,
+          result_type,
+          mime_type,
+          file_name,
+          is_error,
+          summary
+        } = response
+        const type = is_error ? 'error' : 'success'
+        const message = isEmptyValue(summary) ? (is_error ? 'Error' : 'OK') : summary
         showMessage({
-          type: 'success',
-          message: response,
+          type,
+          message,
           showClose: true
         })
+        if (
+          !isEmptyValue(output_stream) &&
+          !isEmptyValue(mime_type) &&
+          !isEmptyValue(file_name)
+        ) {
+          const link = buildLinkHref({
+            fileName: file_name,
+            outputStream: output_stream,
+            mimeType: mime_type
+          })
+          // commit('addReportToList', reportResponse)
+          commit('setReportOutput', {
+            download: link.download,
+            format: result_type,
+            fileName: file_name,
+            link,
+            content: output_stream,
+            mimeType: mime_type,
+            name: file_name,
+            output: output_stream,
+            outputStream: output_stream,
+            reportType: result_type,
+            reportUuid: orderId.toString(),
+            reportViewUuid: orderId.toString(),
+            tableName: 'C_Order',
+            url: link.href,
+            uuid: orderId.toString(),
+            instanceUuid: orderId.toString()
+          })
+          router.push({
+            name: REPORT_VIEWER_NAME,
+            params: {
+              processId: orderId,
+              reportUuid: orderId.toString(),
+              tableName: 'C_Order',
+              instanceUuid: orderId.toString(),
+              fileName: file_name,
+              name: file_name,
+              mimeType: mime_type
+            }
+          }, () => {})
+        }
+        return response
       })
       .catch(error => {
         console.warn(error.message)
@@ -333,5 +431,39 @@ export default {
           showClose: true
         })
       })
+  },
+  printTicketPreviwer({ rootGetters }, {
+    posUuid, orderUuid
+  }) {
+    return new Promise((resolve, reject) => {
+      const isAllowsPreviewDocument = rootGetters.posAttributes.currentPointOfSales.isAllowsPreviewDocument
+
+      if (!isAllowsPreviewDocument) {
+        return reject({
+          message: language.t('pointOfSales.permissions.previewDocumentNotAllowed')
+        })
+      }
+
+      printTicketPreviwer({
+        posUuid,
+        orderUuid
+      })
+        .then(response => {
+          showMessage({
+            type: 'success',
+            message: response.result,
+            showClose: true
+          })
+          resolve(response)
+        })
+        .catch(error => {
+          console.warn(error.message)
+          showMessage({
+            type: 'error',
+            message: error.message,
+            showClose: true
+          })
+        })
+    })
   }
 }

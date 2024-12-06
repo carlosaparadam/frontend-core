@@ -1,23 +1,28 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Yamel Senih ysenih@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+// Constants
+import { FIELDS_DATE, FIELDS_DECIMALS } from '@/utils/ADempiere/references.js'
+import { COLUMNNAME_Record_ID } from '@/utils/ADempiere/constants/systemColumns'
 
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-// utils and helper methods
+// Utils and Helper Methods
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
 import { isDisplayedField, isMandatoryField } from '@/utils/ADempiere/dictionary/process.js'
-import { isNumberField } from '@/utils/ADempiere/references'
 
 /**
  * Dictionary Process Getters
@@ -51,10 +56,13 @@ export default {
     }
 
     const fieldsEmpty = fieldsList.filter(fieldItem => {
-      const isMandatory = isMandatoryField(fieldItem)
-      const isDisplayed = isDisplayedField(fieldItem)
+      if (fieldItem.is_info_only) {
+        return false
+      }
+      const isMandatoryGenerated = isMandatoryField(fieldItem)
+      const isDisplayedGenerated = isDisplayedField(fieldItem)
 
-      if (!(isDisplayed && isMandatory)) {
+      if (!(isDisplayedGenerated && isMandatoryGenerated)) {
         return false
       }
 
@@ -95,17 +103,21 @@ export default {
       fieldsList = getters.getStoredFieldsFromProcess(containerUuid)
     }
 
-    const processParameters = []
+    const processParameters = {}
 
     fieldsList.forEach(fieldItem => {
-      const { columnName } = fieldItem
+      const {
+        is_info_only, columnName, display_type, is_range, columnNameTo, isGeneratedRange
+      } = fieldItem
+      if (is_info_only) {
+        return false
+      }
       const isMandatory = isMandatoryField(fieldItem)
-      // evaluate displayed fields
-      const isDisplayed = isDisplayedField(fieldItem) &&
-        (fieldItem.isShowedFromUser || isMandatory)
-
-      if (!isDisplayed) {
-        return
+      if (!isMandatory) {
+        // evaluate displayed fields
+        if (!fieldItem.isShowedFromUser) {
+          return
+        }
       }
 
       const value = rootGetters.getValueOfField({
@@ -113,28 +125,99 @@ export default {
         columnName
       })
 
-      if (fieldItem.isRange && !isNumberField(fieldItem.displayType)) {
+      const isDateField = FIELDS_DATE.includes(display_type)
+      const isDecimalField = FIELDS_DECIMALS.includes(display_type)
+
+      if (is_range && isGeneratedRange) {
         const valueTo = rootGetters.getValueOfField({
           containerUuid,
-          columnName: fieldItem.columnNameTo
+          columnName: columnNameTo
         })
         if (!isEmptyValue(valueTo)) {
-          processParameters.push({
-            columnName: fieldItem.columnNameTo,
-            value: valueTo
-          })
+          processParameters[columnNameTo] = valueTo
+          if (isDateField) {
+            processParameters[columnNameTo] = {
+              type: 'date',
+              value: valueTo
+            }
+          } else if (isDecimalField) {
+            processParameters[columnNameTo] = {
+              type: 'decimal',
+              value: valueTo
+            }
+          }
         }
       }
 
       if (!isEmptyValue(value)) {
-        processParameters.push({
-          columnName,
-          value
-        })
+        // processParameters.push({
+        //   columnName,
+        //   value
+        // })
+        processParameters[columnName] = value
+        if (isDateField) {
+          processParameters[columnName] = {
+            type: 'date',
+            value: value
+          }
+        } else if (isDecimalField && ![COLUMNNAME_Record_ID].includes(columnName)) {
+          processParameters[columnName] = {
+            type: 'decimal',
+            value: value
+          }
+        }
       }
     })
 
     return processParameters
+  },
+
+  /**
+   * Available fields to showed/hidden
+   * to show, used in components FilterFields
+   * @param {string} containerUuid
+   * @param {array} fieldsList
+   * @param {function} showedMethod
+   * @param {boolean} isEvaluateShowed
+   * @param {boolean} isEvaluateDefaultValue
+   */
+  getProcessParametersListToHidden: (state, getters) => ({
+    containerUuid,
+    fieldsList = [],
+    showedMethod = isDisplayedField,
+    isEvaluateDefaultValue = false,
+    isEvaluateShowed = true
+  }) => {
+    if (isEmptyValue(fieldsList)) {
+      fieldsList = getters.getStoredFieldsFromProcess(containerUuid)
+      if (isEmptyValue(fieldsList)) {
+        return []
+      }
+    }
+
+    // all optionals (not mandatory) fields
+    return fieldsList
+      .filter(fieldItem => {
+        const { is_mandatory, default_value } = fieldItem
+        if (is_mandatory) {
+          return false
+        }
+
+        if (isEvaluateDefaultValue && isEvaluateShowed) {
+          return showedMethod(fieldItem) &&
+            !isEmptyValue(default_value)
+        }
+
+        if (isEvaluateDefaultValue) {
+          return !isEmptyValue(default_value)
+        }
+
+        if (isEvaluateShowed) {
+          return showedMethod(fieldItem)
+        }
+
+        return true
+      })
   }
 
 }

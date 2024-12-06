@@ -89,8 +89,8 @@
 </template>
 
 <script>
-import UploadExcelComponent from '@theme/components/UploadExcel/index.vue'
-import Carousel from '@theme/components/ADempiere/Carousel'
+import UploadExcelComponent from '@/components/UploadExcel/index.vue'
+import Carousel from '@/components/ADempiere/Carousel'
 
 export default {
   name: 'UploadExcel',
@@ -173,13 +173,12 @@ export default {
       return false
     },
     handleSuccess({ data, workbook, firstSheetName, worksheet, results, header }) {
-      console.log({ data, workbook, firstSheetName, worksheet, results, header })
-      const epale = results.filter((data, index) => {
+      const dataRow = results.filter((data, index) => {
         if (index <= 5) {
           return data
         }
       })
-      this.tableData = epale
+      this.tableData = dataRow
       this.tableHeader = header
     },
     next() {

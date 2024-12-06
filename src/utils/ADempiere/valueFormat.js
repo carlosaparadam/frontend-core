@@ -1,160 +1,182 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Yamel Senih ysenih@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 // A util class for handle format for time, date and others values to beused to display information
 // Note that this file use moment library for a easy conversion
-import moment from 'moment'
-import store from '@/store'
 
-// utils and helper methods
-import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
-import { getDateFormat } from '@/utils/ADempiere/formatValue/dateFormat.js'
-import { DATE, DATE_PLUS_TIME, TIME, AMOUNT, COSTS_PLUS_PRICES, NUMBER, QUANTITY } from '@/utils/ADempiere/references.js'
+// Constants
+import {
+  DATE, DATE_PLUS_TIME, TIME,
+  AMOUNT, COSTS_PLUS_PRICES, NUMBER, QUANTITY,
+  CHAR, MEMO, TEXT, TEXT_LONG,
+  BUTTON, ID,
+  ACCOUNT_ELEMENT, LOCATION_ADDRESS, // Custom lookups
+  LOCATOR_WAREHOUSE, PRODUCT_ATTRIBUTE, // Custom lookups of Producs
+  LIST, TABLE, TABLE_DIRECT, SEARCH, // Standard lookups
+  IMAGE, // file lookups
+  YES_NO
+} from '@/utils/ADempiere/references.js'
+import { NUMBER_PRECISION } from '@/utils/ADempiere/formatValue/numberFormat.js'
 
-/**
- * Convert a object to array pairs
- * @param {object} object, object to convert
- * @param {string} nameKey, name from key in pairs
- * @param {string} nameValue, name from value in pairs
- * @returns {array} [ { nameKey: key, nameValue: value } ]
- */
-export function convertObjectToKeyValue({
-  object,
-  keyName = 'columnName',
-  valueName = 'value'
-}) {
-  return Object.keys(object).map(key => {
-    const returnPairs = {}
-    returnPairs[keyName] = key
-    returnPairs[valueName] = object[key]
-    return returnPairs
+// Utils and Helper Methods
+import { getTypeOfValue, isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
+import { convertBooleanToTranslationLang } from './formatValue/booleanFormat'
+export { convertObjectToKeyValue } from '@/utils/ADempiere/formatValue/iterableFormat'
+import { decodeHtmlEntities } from '@/utils/ADempiere/formatValue/stringFormat.js'
+// TODO: Duplicated exported method, removed this
+import { formatPrice as formatPriceTemp, formatQuantity } from '@/utils/ADempiere/formatValue/numberFormat'
+import { formatDate as formatDateTemp, getDateFormat } from '@/utils/ADempiere/formatValue/dateFormat'
+
+// TODO: Duplicated method remove and use with destructured params
+export function formatDate(value, isTime = false, format) {
+  return formatDateTemp({
+    value,
+    isTime,
+    format
   })
 }
 
-/**
- * Convert map of pairs to literal object
- * @param {object} object
- * @returns {map}
- */
-export function convertObjectToHasMap({ object }) {
-  return new Map(
-    Object.entries(object)
-  )
-}
-
-/**
- * Convert map of pairs to literal object
- * @param {map} hasMapToConvert
- * @returns {object} { key: value, key2: value2 }
- */
-export function convertHasMapToObject({ map }) {
-  return Object.fromEntries(map)
-  // const result = {}
-  // map.forEach((value, key) => {
-  //   result[key] = value
-  // })
-  // return result
-}
-
-// TODO: Duplicated exported method, removed this
-export { formatDate } from '@/utils/ADempiere/formatValue/dateFormat'
-
-//  Get Formatted Price
+// TODO: Duplicated method remove and use with destructured params
 export function formatPrice(number, currency) {
-  if (isEmptyValue(number)) {
-    return undefined
-  }
-  if (isEmptyValue(currency)) {
-    currency = getCurrency()
-  }
-  //  Get formatted number
-  return new Intl.NumberFormat(getCountryCode(), {
-    style: 'currency',
+  return formatPriceTemp({
+    value: number,
     currency
-  }).format(number)
+  })
 }
 
-//  Format Quantity
-export function formatQuantity(number) {
-  if (isEmptyValue(number)) {
-    return undefined
-  }
-  if (!Number.isInteger(number)) {
-    return number
-  }
-  return Number.parseFloat(number).toFixed(2)
-  //  Get formatted number
-}
-
-// TODO: Duplicated exported method, removed this
 // Format percentage based on Intl library
 export { formatPercent } from '@/utils/ADempiere/formatValue/numberFormat.js'
 
-//  Get country code from store
-function getCountryCode() {
-  const languageDefinition = store.getters.getCurrentLanguageDefinition
-  return languageDefinition.languageISO + '-' + languageDefinition.countryCode
-}
-
-// Get Default country
-function getCurrency() {
-  const currencyDefinition = store.getters.getCurrency
-  return currencyDefinition.iSOCode
-}
-
 // Return a format for field depending of reference for him
-export function formatField(value, reference, optionalFormat) {
+export function formatField({
+  value,
+  displayedValue,
+  displayType,
+  currency,
+  precision = NUMBER_PRECISION,
+  optionalFormat
+}) {
   if (isEmptyValue(value)) {
     return undefined
   }
-  if (!reference) {
-    return value
+  let currentValue = value
+  // date and number is object { value, type }
+  if (getTypeOfValue(currentValue) === 'OBJECT' && Object.prototype.hasOwnProperty.call(currentValue, 'value')) {
+    currentValue = value.value
+  }
+  if (isEmptyValue(currentValue)) {
+    return undefined
+  }
+  if (isEmptyValue(displayType)) {
+    return currentValue
   }
   //  Format
   let formattedValue
-  switch (reference) {
-    case DATE.id:
-      formattedValue = moment.utc(value).format(getDateFormat({
-        format: optionalFormat
-      }))
+  switch (displayType) {
+    case ACCOUNT_ELEMENT.id:
+    case BUTTON.id:
+    case ID.id:
+    case LIST.id:
+    case LOCATION_ADDRESS.id:
+    case LOCATOR_WAREHOUSE.id:
+    case PRODUCT_ATTRIBUTE.id:
+    case SEARCH.id:
+    case TABLE.id:
+    case TABLE_DIRECT.id:
+      formattedValue = displayedValue
+      if (isEmptyValue(formattedValue)) {
+        // set value
+        formattedValue = currentValue
+      }
       break
+
+    case DATE.id:
+      formattedValue = formatDateTemp({
+        value: currentValue,
+        isTime: false,
+        format: getDateFormat({
+          format: optionalFormat,
+          isTime: false,
+          isDate: true
+        })
+      })
+      break
+
     case DATE_PLUS_TIME.id:
-      formattedValue = moment.utc(value).format(getDateFormat({
-        isTime: true
-      }))
+      formattedValue = formatDateTemp({
+        value: currentValue,
+        isTime: true,
+        format: optionalFormat || 'yyyy-MM-dd hh:mm:ss A'
+      })
       break
     case TIME.id:
-      formattedValue = moment.utc(value).format(getDateFormat({
-        isTime: true
-      }))
+      formattedValue = formatDateTemp({
+        value: currentValue,
+        isTime: true,
+        format: getDateFormat({
+          format: optionalFormat,
+          isTime: true,
+          isDate: false
+        })
+      })
       break
+
     case AMOUNT.id:
-      formattedValue = formatPrice(value)
-      break
     case COSTS_PLUS_PRICES.id:
-      formattedValue = formatPrice(value)
+      formattedValue = formatPriceTemp({
+        value: currentValue,
+        currency
+      })
       break
+
     case NUMBER.id:
-      formattedValue = formatQuantity(value)
+      formattedValue = formatQuantity({
+        value: currentValue,
+        precision
+      })
       break
     case QUANTITY.id:
-      formattedValue = formatQuantity(value)
+      formattedValue = formatQuantity({
+        value: currentValue
+      })
       break
+
+    case YES_NO.id:
+      formattedValue = convertBooleanToTranslationLang(currentValue)
+      break
+
+    case CHAR.id:
+    case MEMO.id:
+    case TEXT.id:
+    case TEXT_LONG.id:
+      formattedValue = decodeHtmlEntities(currentValue)
+      break
+
+    case IMAGE.id:
+      if (isEmptyValue(displayedValue)) {
+        formattedValue = undefined
+        break
+      }
+      formattedValue = displayedValue
+      break
+
     default:
-      formattedValue = value
+      formattedValue = currentValue
   }
   return formattedValue
 }
@@ -180,10 +202,4 @@ export function trimPercentage(stringToParsed) {
     return parsedValue
   }
   return stringToParsed
-}
-export function formatDateToSend(date) {
-  if (isEmptyValue(date)) {
-    return undefined
-  }
-  return date.slice(0, 10)
 }

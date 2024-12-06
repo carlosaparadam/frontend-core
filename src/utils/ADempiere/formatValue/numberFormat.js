@@ -1,32 +1,53 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import store from '@/store'
 
+// Constants
 import {
-  // currencies
-  isCurrencyField,
-  //
-  NUMBER,
-  QUANTITY,
-  // integers
-  isIntegerField
+  NUMBER, QUANTITY
 } from '@/utils/ADempiere/references.js'
+import { STD_PRECISION } from '@/utils/ADempiere/constants/systemColumns'
+import { GLOBAL_CONTEXT_PREFIX } from '@/utils/ADempiere/contextUtils'
 
-import { charInText, isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
+// Utils and Helpers Methods
+import {
+  isCurrencyField, isIntegerField
+} from '@/utils/ADempiere/references.js'
+import { charInText, getTypeOfValue, isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
+
+// Precision tool number display time
+export const NUMBER_PRECISION = 12
+
+/**
+ * Is Number Value
+ * @param {mixed} value
+ * @returns {boolean}
+ */
+export function isNumber(value) {
+  if (Number.isNaN(value)) {
+    return false
+  }
+  if (isNaN(value)) {
+    return false
+  }
+  return true
+}
 
 /**
  * Get Default currency ISO code
@@ -35,8 +56,12 @@ export function getCurrency() {
   return store.getters.getCurrencyCode
 }
 
+/**
+ * Get standard presicion
+ * @returns {number}
+ */
 export function getStandardPrecision() {
-  return store.getters.getStandardPrecision
+  return store.getters['user/getCurrencyPrecision'].standard_precision
 }
 
 /**
@@ -58,7 +83,8 @@ export function formatNumber({
   value,
   displayType,
   currency,
-  country
+  country,
+  precision
 }) {
   if (isEmptyValue(value)) {
     value = 0
@@ -66,18 +92,23 @@ export function formatNumber({
 
   let formattedNumber
   switch (displayType) {
+    // ID, Integer
+    case (isIntegerField(displayType) && displayType):
+    default:
+      formattedNumber = formatQuantity({ value, isInteger: true })
+      break
+
+    // Amount, Costs+Prices
     case (isCurrencyField(displayType) && displayType):
       formattedNumber = formatPrice({ value, currency, country })
       break
 
     case NUMBER.id:
-    case QUANTITY.id:
-      formattedNumber = formatQuantity({ value })
+      formattedNumber = formatQuantity({ value, precision: !isEmptyValue(precision) ? precision : NUMBER_PRECISION })
       break
-
-    case (isIntegerField(displayType) && displayType):
-    default:
-      formattedNumber = formatQuantity({ value, isInteger: true })
+    // Quantity
+    case QUANTITY.id:
+      formattedNumber = formatQuantity({ value, precision })
       break
   }
 
@@ -86,21 +117,31 @@ export function formatNumber({
 
 /**
  * Format Quantity
- * @param {number} value
- * @param {boolean} isInteger
+ * @param {Number} value
+ * @param {Boolean} isInteger
  */
-export function formatQuantity({ value, isInteger = false }) {
+export function formatQuantity({ value, isInteger = false, precision }) {
+  const {
+    value: currentValue, precision: currentPrecision
+  } = getNumberFromGRPC({
+    value
+  })
+  value = currentValue
   if (isEmptyValue(value)) {
     value = 0
   }
-
-  let precision = getStandardPrecision()
+  // TODO: Evaluate if currentPrecision overwrite precision
+  if (isEmptyValue(precision)) {
+    precision = currentPrecision
+  }
+  if (isEmptyValue(precision) || precision === 0) {
+    precision = getStandardPrecision()
+  }
   // without decimals
   // if (Number.isInteger(value)) {
   if (isInteger) {
     precision = 0
   }
-
   // get formatted decimal number
   return new Intl.NumberFormat(undefined, {
     useGrouping: true, // thousands separator
@@ -115,14 +156,19 @@ export function formatQuantity({ value, isInteger = false }) {
  * @param {number} value
  * @param {string} currency
  * @param {string} country
+ * @returns {number}
  */
-export function formatPrice({ value, currency, country = '' }) {
+export function formatPrice({ value, currency, country = '', precision }) {
   if (isEmptyValue(value)) {
     value = 0
   }
 
+  // Show amount without currency
   if (isEmptyValue(currency)) {
-    currency = getCurrency()
+    // currency = getCurrency()
+    return formatQuantity({
+      value
+    })
   }
 
   // const precision = getStandardPrecision()
@@ -132,14 +178,23 @@ export function formatPrice({ value, currency, country = '' }) {
   }
 
   // get formatted currency number
-  return new Intl.NumberFormat(country, {
-    style: 'currency',
-    currency,
-    useGrouping: true,
-    // minimumFractionDigits: precision,
-    // maximumFractionDigits: precision,
-    minimumIntegerDigits: 1
-  }).format(value)
+  let formattedValue = value
+  try {
+    formattedValue = new Intl.NumberFormat(country, {
+      style: 'currency',
+      currency,
+      useGrouping: true,
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision,
+      minimumIntegerDigits: 1
+    }).format(value)
+  } catch (e) {
+    // console.warn(e.message)
+    formattedValue = formatQuantity({
+      value
+    })
+  }
+  return formattedValue
 }
 
 /**
@@ -156,6 +211,35 @@ export function formatPercent(value) {
     style: 'percent',
     minimumIntegerDigits: 1
   }).format(value)
+}
+
+/**
+ * Return number value and precision
+ * @param {Object} value { value, type }
+ * @returns {Object} { value, precision }
+ */
+export function getNumberFromGRPC({ value }) {
+  let numberValue = value
+  let scale = 0
+
+  if (getTypeOfValue(value) === 'OBJECT') {
+    numberValue = value.value
+    if (getTypeOfValue(numberValue) === 'STRING') {
+      const index = numberValue
+        .toString()
+        .indexOf('.')
+      if (index !== -1) {
+        scale = numberValue.toString().length - index - 1
+      }
+
+      numberValue = Number(numberValue)
+    }
+  }
+
+  return {
+    value: numberValue,
+    precision: scale
+  }
 }
 
 /**
@@ -274,10 +358,34 @@ export function formatExponential(value) {
       exponential = getStandardPrecision()
     }
 
-    // TODO: Verify with formatQuantity
+    // TODO: Verify with spot
     return Number.parseFloat(value)
       .toFixed(exponential)
   }
 
   return value
+}
+
+/**
+ * Replace comma with period
+ * @param {number} value ej: 1,2345
+ * @returns ej: 1.2345
+ */
+export function replaceComma(value) {
+  return value.replace(/,/g, '.')
+}
+
+/**
+ * Default Standard Precision Context
+ */
+export function standardPrecisionContext({
+  parentUuid,
+  containerUuid
+}) {
+  if (isEmptyValue(containerUuid) || isEmptyValue(parentUuid)) return NUMBER_PRECISION
+  return store.getters.getSessionContext({
+    parentUuid,
+    containerUuid,
+    columnName: GLOBAL_CONTEXT_PREFIX + STD_PRECISION
+  })
 }

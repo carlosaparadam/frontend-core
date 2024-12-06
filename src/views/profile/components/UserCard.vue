@@ -1,74 +1,57 @@
 <template>
-  <el-card style="margin-bottom:20px;">
-    <div slot="header" class="clearfix">
-      <span>{{ $t('profile.aboutMe') }}</span>
-    </div>
-
+  <el-card style="margin-bottom: 5px; padding: 0px;">
     <div class="user-profile">
-      <div class="box-center">
-        <pan-thumb :image="avatarResize" :height="'100px'" :width="'100px'" :hoverable="false">
-          <div>Hello</div>
-          {{ currentRole.name }}
-        </pan-thumb>
-      </div>
-      <div class="box-center">
-        <div class="user-name text-center">
-          {{ currentRole.name }}
-        </div>
-        <br>
-
-        <div class="user-role text-muted">
-          <div class="user-header">
-            {{ $t('profile.availableRoles') }}
+      <el-row>
+        <el-col :span="12">
+          <div class="box-center">
+            <pan-thumb
+              :image="imageUrl"
+              :hoverable="true"
+            >
+              {{ currentRole.name }}
+            </pan-thumb>
           </div>
-          <li v-for="(item, key) in rolesList" :key="key">
-            {{ item.name | uppercaseFirst }}
-          </li>
-        </div>
-      </div>
-    </div>
-
-    <div class="user-bio">
-      <div class="user-education user-bio-section">
-        <div class="user-bio-section-header"><svg-icon icon-class="education" /><span>Education</span></div>
-        <div class="user-bio-section-body">
-          <div class="text-muted">
-            JS in Computer Science from the University of Technology
+          <div class="box-center">
+            <div class="user-name text-center">
+              {{ currentRole.name }}
+            </div>
           </div>
-        </div>
-      </div>
-
-      <div class="user-skills user-bio-section">
-        <div class="user-bio-section-header"><svg-icon icon-class="skill" /><span>Skills</span></div>
-        <div class="user-bio-section-body">
-          <div class="progress-item">
-            <span>Vue</span>
-            <el-progress :percentage="70" />
+          <!-- <br> -->
+        </el-col>
+        <el-col :span="12">
+          <div class="user-role text-muted">
+            <div class="user-header">
+              {{ $t('profile.availableRoles') }}
+            </div>
+            <li v-for="(item, key) in rolesList" :key="key">
+              {{ item.name | uppercaseFirst }}
+            </li>
           </div>
-          <div class="progress-item">
-            <span>JavaScript</span>
-            <el-progress :percentage="18" />
-          </div>
-          <div class="progress-item">
-            <span>Css</span>
-            <el-progress :percentage="12" />
-          </div>
-          <div class="progress-item">
-            <span>ESLint</span>
-            <el-progress :percentage="100" status="success" />
-          </div>
-        </div>
-      </div>
+        </el-col>
+      </el-row>
     </div>
   </el-card>
 </template>
 
 <script>
-import PanThumb from '@theme/components/PanThumb'
-import { getImagePath } from '@/utils/ADempiere/resource.js'
+import { defineComponent, computed, ref } from '@vue/composition-api'
 
-export default {
-  components: { PanThumb },
+import store from '@/store'
+// Components and Mixins
+import PanThumb from '@/components/PanThumb'
+
+// Constants
+// import { COLUMN_NAME, TABLE_NAME_USER } from '@/utils/ADempiere/constants/resoucer.ts'
+
+// // // Utils and Helper Methods
+// import { pathImageWindows } from '@/utils/ADempiere/resource.js'
+import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
+
+export default defineComponent({
+  components: {
+    PanThumb
+  },
+
   props: {
     user: {
       type: Object,
@@ -82,29 +65,52 @@ export default {
       }
     }
   },
-  computed: {
-    currentRole() {
-      return this.$store.getters['user/getRole']
-    },
-    rolesList() {
-      return this.$store.getters['user/getRoles']
-    },
-    avatarResize() {
-      const defaultAvatar = 'https://avatars1.githubusercontent.com/u/1263359?s=200&v=4?imageView2/1/w/80/h/80'
-      if (this.isEmptyValue(this.user.avatar) || defaultAvatar.includes(this.user.avatar)) {
-        return defaultAvatar
-      }
 
-      const { uri } = getImagePath({
-        file: this.user.avatar,
-        width: 100,
-        height: 100
-      })
+  setup() {
+    const currentRole = computed(() => {
+      return store.getters['user/getRole']
+    })
 
-      return uri
+    const rolesList = computed(() => {
+      return store.getters['user/getRoles']
+    })
+
+    const userInfo = computed(() => {
+      return store.getters['user/userInfo']
+    })
+
+    const avatarResize = ref('')
+
+    const userAvatar = computed(() => {
+      return store.getters['user/getUserAvatar']
+    })
+
+    const clientId = computed(() => {
+      const { client_uuid } = userInfo.value
+      return client_uuid
+    })
+
+    const imageUrl = computed(() => {
+      const url = store.getters['user/getUserUrl']
+      if (!isEmptyValue(url)) return url
+      return require('@/image/ADempiere/avatar/no-avatar.png')
+    })
+
+    avatarResize.value = require('@/image/ADempiere/avatar/no-avatar.png')
+
+    return {
+      // Ref
+      userAvatar,
+      avatarResize,
+      // Computed
+      currentRole,
+      rolesList,
+      clientId,
+      userInfo,
+      imageUrl
     }
   }
-}
+})
 </script>
 
 <style lang="scss" scoped>
@@ -121,13 +127,18 @@ export default {
   .user-name {
     font-weight: bold;
   }
+  .el-card {
+    .el-card__body {
+      padding: 0px !important;
+    }
+  }
 
   .box-center {
-    padding-top: 10px;
+    padding-bottom: 5px;
   }
 
   .user-role {
-    padding-top: 10px;
+    padding-top: 1px;
     font-weight: 400;
     font-size: 14px;
     .user-header {

@@ -1,6 +1,6 @@
 <template>
   <div id="tags-view-container" class="tags-view-container">
-    <scroll-pane ref="scrollPane" class="tags-view-wrapper" @scroll="handleScroll">
+    <scroll-pane ref="scrollPane" class="tags-view-wrapper" style="display: flex;width: 100% !important;" @scroll="handleScroll">
       <draggable
         v-if="!isMobile"
         :list="visitedViews"
@@ -24,43 +24,79 @@
           }"
           tag="span"
           class="tags-view-item"
-          @click.middle.native="!isAffix(tag) ? closeSelectedTag(tag) : ''"
+          @click.middle.native="!isAffix(tag) ? closeValidateTag(tag) : ''"
           @contextmenu.prevent.native="openMenu(tag,$event)"
         >
           <span role="link" @click="navigate" @keypress.enter="navigate">
             <div class="tag-title">
               {{ generateTitle(tag.title) }}
             </div>
-            <div v-if="!tag.meta.affix" class="el-icon-close" @click.prevent.stop="closeSelectedTag(tag)" />
+            <div v-if="!tag.meta.affix" class="el-icon-close" @click.prevent.stop="closeValidateTag(tag)" />
           </span>
         </router-link>
       </draggable>
-      <router-link
-        v-for="tag in visitedViews"
-        v-else
-        v-slot="{ navigate }"
-        ref="tag"
-        :key="tag.path"
-        custom
-        :class="isActive(tag)?'active':''"
-        :to="{ name: tag.name, path: tag.path, query: tag.query, fullPath: tag.fullPath, params: tag.params }"
-        tag="span"
-        class="tags-view-item"
-        @click.middle.native="!isAffix(tag)?closeSelectedTag(tag):''"
-        @contextmenu.prevent.native="openMenu(tag,$event)"
-      >
-        <span role="link" @click="navigate" @keypress.enter="navigate">
-          {{ generateTitle(tag.title) }}
-          <span v-if="!isAffix(tag)" class="el-icon-close" @click.prevent.stop="closeSelectedTag(tag)" />
-        </span>
-      </router-link>
+      <template v-else>
+        <div style="display: flex;">
+          <router-link
+            v-for="tag in visitedViews"
+            v-slot="{ navigate }"
+            ref="tag"
+            :key="tag.path"
+            custom
+            :class="isActive(tag)?'active':''"
+            :to="{ name: tag.name, path: tag.path, query: tag.query, fullPath: tag.fullPath, params: tag.params }"
+            tag="span"
+            class="tags-view-item"
+            @click.middle.native="!isAffix(tag)?closeValidateTag(tag):''"
+            @contextmenu.prevent.native="openMenu(tag,$event)"
+          >
+            <span role="link" @click="navigate" @keypress.enter="navigate">
+              {{ generateTitle(tag.title) }}
+              <span v-if="!isAffix(tag)" class="el-icon-close" @click.prevent.stop="closeValidateTag(tag)" />
+            </span>
+          </router-link>
+        </div>
+      </template>
     </scroll-pane>
     <ul v-show="visible" :style="{left:left+'px',top:top+'px'}" class="contextmenu">
       <li @click="refreshSelectedTag(selectedTag)">{{ $t('tagsView.refresh') }}</li>
-      <li v-if="!isAffix(selectedTag)" @click="closeSelectedTag(selectedTag)">{{ $t('tagsView.close') }}</li>
+      <li v-if="!isAffix(selectedTag)" @click="closeValidateTag(selectedTag)">{{ $t('tagsView.close') }}</li>
       <li @click="closeOthersTags">{{ $t('tagsView.closeOthers') }}</li>
       <li @click="closeAllTags(selectedTag)">{{ $t('tagsView.closeAll') }}</li>
     </ul>
+
+    <el-dialog
+      :title="$t('window.recordValidation.closeWindow')"
+      :visible.sync="dialogVisible"
+    >
+      <span>
+        <el-table
+          :data="recordsModifiedWindow"
+          style="width: 100%"
+        >
+          <el-table-column
+            prop="name"
+            :label="$t('window.recordValidation.tab')"
+          />
+          <el-table-column
+            prop="fieldName"
+            :label="$t('window.recordValidation.field')"
+          />
+          <el-table-column
+            prop="value"
+            :label="$t('window.recordValidation.value')"
+          />
+        </el-table>
+      </span>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="discardChanges">
+          {{ $t('window.recordValidation.discardChanges') }}
+        </el-button>
+        <el-button type="primary" @click="dialogVisible = false">
+          {{ $t('window.recordValidation.returnToWindow') }}
+        </el-button>
+      </span>
+    </el-dialog>
   </div>
 </template>
 
@@ -70,20 +106,32 @@ import { generateTitle } from '@/utils/i18n'
 import path from 'path'
 import draggable from 'vuedraggable'
 
-// utils and helper methods
+// Constants
+import {
+  REPORT_VIEWER_NAME
+} from '@/utils/ADempiere/dictionary/report'
+
+// Utils and Helper Methods
 import { capitalize } from '@/utils/ADempiere/formatValue/stringFormat'
+import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
 
 export default {
-  components: { ScrollPane, draggable },
+  components: {
+    ScrollPane, draggable
+  },
+
   data() {
     return {
       visible: false,
       top: 0,
       left: 0,
       selectedTag: {},
-      affixTags: []
+      affixTags: [],
+      dialogVisible: false,
+      recordsModifiedWindow: []
     }
   },
+
   computed: {
     isMobile() {
       return this.$store.state.app.device === 'mobile'
@@ -95,6 +143,7 @@ export default {
       return this.$store.state.permission.routes
     }
   },
+
   watch: {
     $route() {
       this.addTags()
@@ -108,14 +157,16 @@ export default {
       }
     }
   },
+
   mounted() {
     this.initTags()
     this.addTags()
   },
+
   methods: {
     generateTitle, // generateTitle by vue-i18n
     isActive(route) {
-      if (route.name === 'Report Viewer') {
+      if (route.name === REPORT_VIEWER_NAME) {
         const isSameReport = route.params.reportUuid === this.$route.params.reportUuid
         if (isSameReport && route.params.tableName === this.$route.params.tableName) {
           return isSameReport
@@ -168,7 +219,7 @@ export default {
       const tags = this.$refs.tag
       this.$nextTick(() => {
         for (const tag of tags) {
-          if (this.$route.name === 'Report Viewer') {
+          if (this.$route.name === REPORT_VIEWER_NAME) {
             if (this.$route.params && tag.to.params &&
               tag.to.params.reportUuid === this.$route.params.reportUuid &&
               tag.to.params.tableName === this.$route.params.tableName) {
@@ -199,6 +250,79 @@ export default {
         })
       })
     },
+    discardChanges() {
+      const tabs = new Map()
+      this.recordsModifiedWindow.forEach(change => {
+        tabs.set(change.containerUuid, {
+          parentUuid: change.parentUuid,
+          contailerUuid: change.containerUuid
+        })
+      })
+
+      tabs.forEach((value, key, hasMap) => {
+        this.$store.dispatch('setOldPersistenceValues', {
+          parentUuid: value.parentUuid,
+          containerUuid: value.contailerUuid,
+          recordUuid: this.$store.getters.getUuidOfContainer(value.contailerUuid)
+        })
+      })
+
+      this.dialogVisible = false
+      this.closeSelectedTag(this.recordsModifiedWindow.at().view)
+    },
+    closeValidateTag(view) {
+      if (!view.meta || !view.meta.uuid || !view.meta.type || view.meta.type !== 'window') {
+        this.closeSelectedTag(view)
+        return
+      }
+
+      const storedWindow = this.$store.getters.getStoredWindow(view.meta.uuid)
+      const columnsChanges = []
+      this.recordsModifiedWindow = []
+      if (!isEmptyValue(storedWindow)) {
+        storedWindow.tabsList.forEach(tabs => {
+          const { parentUuid, name, containerUuid, fieldsList } = tabs
+          const currentChangesOnTab = this.$store.getters.getPersistenceAttributesChanges({
+            parentUuid,
+            containerUuid,
+            recordUuid: this.$store.getters.getUuidOfContainer(containerUuid)
+          })
+          if (isEmptyValue(currentChangesOnTab)) {
+            return
+          }
+          currentChangesOnTab.forEach(attribute => {
+            const { columnName, value } = attribute
+            let fieldName = columnName
+
+            if (!isEmptyValue(fieldsList)) {
+              const labelField = fieldsList.find(list => list.columnName === columnName)
+              if (!isEmptyValue(labelField)) {
+                fieldName = labelField.name
+              }
+            }
+
+            if (!columnName.includes('DisplayColumn_')) {
+              columnsChanges.push({
+                fieldName,
+                containerUuid,
+                parentUuid,
+                columnName,
+                value,
+                name,
+                view
+              })
+            }
+          })
+        })
+
+        this.recordsModifiedWindow = columnsChanges
+        if (!isEmptyValue(this.recordsModifiedWindow)) {
+          this.dialogVisible = true
+          return
+        }
+      }
+      this.closeSelectedTag(view)
+    },
     closeSelectedTag(view) {
       this.$store.dispatch('tagsView/delView', view).then(({ visitedViews }) => {
         if (this.isActive(view)) {
@@ -216,7 +340,6 @@ export default {
           if (panelType === 'window') {
             parentUuid = view.meta.uuid
             containerUuid = view.meta.tabUuid
-            this.$store.dispatch('setWindowOldRoute')
           }
 
           const defaultValuesDispatch = `set${capitalize(panelType)}DefaultValues`
@@ -228,18 +351,22 @@ export default {
               panelType,
               isNewRecord: false
             })
+          } else {
+            this.$store.dispatch('setDefaultValues', {
+              parentUuid,
+              containerUuid,
+              panelType,
+              isNewRecord: false
+            })
           }
 
-          this.$store.dispatch('setDefaultValues', {
-            parentUuid,
-            containerUuid,
-            panelType,
-            isNewRecord: false
-          })
-
-          if (['window', 'browser'].includes(panelType)) {
-            this.$store.dispatch('deleteRecordContainer', {
-              viewUuid: view.meta.uuid
+          if (panelType === 'window') {
+            this.$store.dispatch('clearTabData', {
+              parentUuid
+            })
+          } else if (panelType === 'browser') {
+            this.$store.dispatch('clearBrowserData', {
+              containerUuid
             })
           }
         }
@@ -322,7 +449,7 @@ export default {
       flex-direction: row;
       flex-wrap: nowrap;
       flex:none;
-      max-width: 32%;
+      max-width: 90%;
       cursor: pointer;
       height: 26px;
       line-height: 26px;

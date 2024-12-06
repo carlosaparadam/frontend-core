@@ -1,42 +1,45 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Yamel Senih ysenih@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 // Get Instance for connection
 import { request } from '@/utils/ADempiere/request'
 
 /**
- * Request dictionary Process/Report metadata
- * @param {string} uuid universally unique identifier
- * @param {number} id, identifier
+ * GET Process or Report dictionary metadata definition
+ * @param {Number} id identifier
+ * @param {String} language language
+ * @param {Number} clientId client identifier
+ * @param {Number} roleId role identifier
+ * @param {Number} userId user identifier
+ * @returns
  */
 export function requestProcessMetadata({
-  uuid,
-  id
+  id: uuid,
+  // mandatory to open search
+  language,
+  dictionaryCode
 }) {
   return request({
-    url: '/dictionary/process',
+    url: `/dictionary/processes/${uuid}`,
     method: 'get',
     params: {
-      uuid,
-      id
+      language,
+      dictionary_code: dictionaryCode
     }
   })
-    .then(processResponse => {
-      const { convertProcess } = require('@/utils/ADempiere/apiConverts/dictionary.js')
-
-      return convertProcess(processResponse)
-    })
 }

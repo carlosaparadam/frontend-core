@@ -1,21 +1,76 @@
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import actionMenu from './actionMenu'
+import businessPartner from './businessPartner'
+import component from './component'
+import field from './field'
+import form from './form'
+import orderList from './orderList'
+import page from './page'
 import extensionFile from './extensionFile'
 import fieldDisplayOptions from './fieldDisplayOptions'
 import fieldOptions from './fieldOptions'
+import process from './process'
 import recordManager from './recordManager'
 import route from './route'
 import smartBrowser from './smartBrowser'
+import infoSearch from './fieldFormSearch'
+import report from './report.js'
 import window from './window'
+import workflow from './workflow'
+import issues from './form/issues'
+import operators from './operators.ts'
+/**
+ * Translations of Forms
+ */
+import actionNotice from './form/actionNotice'
+import payrollActionNotice from './form/payrollActionNotice'
+import pointOfSales from './form/pointOfSales'
+import listStoreProduct from './form/listStoreProduct'
+import timeControl from './form/timeControl'
+import VPayPrint from './form/VPayPrint'
 
 export default {
   actionMenu,
+  businessPartner,
+  component,
+  field,
+  orderList,
+  page,
+  process,
   extensionFile,
   fieldDisplayOptions,
+  infoSearch,
   fieldOptions,
   recordManager,
   route,
   smartBrowser,
+  actionNotice,
+  payrollActionNotice,
+  pointOfSales,
+  listStoreProduct,
+  timeControl,
+  VPayPrint,
+  report,
+  workflow,
+  issues,
+  operators,
 
   language: 'Language',
   notifications: {
@@ -37,7 +92,7 @@ export default {
     processError: 'Was not executed',
     //
     emptyValues: 'Parameter(s) empty value',
-    fieldCannotBeEmpty: 'The field value cannot be empty.',
+    fieldCannotBeEmpty: 'The field value cannot be empty',
     fieldMandatory: 'The field is mandatory',
     requestError: 'Error executing the request',
     successChangeRole: 'The role has been changed',
@@ -51,7 +106,7 @@ export default {
     invalidEmailFormat: 'Invalid email format',
     recordLocked: 'This record has been locked',
     recordUnlocked: 'This record has been unlocked',
-    noRoleAccess: 'With your current role and settings, you cannot view this information.',
+    noRoleAccess: 'With your current role and settings, you cannot view this information',
     errorPointOfSale: 'No point of sale selected',
     emptyPos: 'This User has no Assigned POS Terminal'
   },
@@ -61,42 +116,13 @@ export default {
       activity: 'Worflow for Approval',
       link: 'Go to Procces Logs'
     },
-    dashboard: 'Dashboard',
+    resetCache: 'Cache Reset',
+    dashboard: 'Graphics',
     github: 'Github',
     logOut: 'Log Out',
     profile: 'Profile',
     theme: 'Theme',
     size: 'Global Size'
-  },
-  login: {
-    noValidUser: 'Please enter the correct user name',
-    noValidPassword: 'The password can not be empty',
-    invalidLogin: 'User Id or Password invalid',
-    unexpectedError: 'An unexpected error has occurred, try again',
-    capsLock: 'Caps lock is On',
-    title: 'Login Form',
-    submit: 'Submit',
-    logIn: 'Login',
-    name: 'Name',
-    lastName: 'Last name',
-    eMail: 'Email',
-    userName: 'User name',
-    userNameOrEmail: 'User name or Email',
-    userEnrollment: 'Enrollment user',
-    userEnrollmentSuccessful: 'Successful user enrollment, check your email',
-    passwordResetSendLink: 'The link to reset the password was sent to the email ',
-    password: 'Password',
-    passwordNew: 'New password',
-    passwordConfirm: 'Password confirm',
-    passwordConfirmNew: 'New password confirm',
-    any: 'any',
-    thirdparty: 'Or connect with',
-    thirdpartyTips: 'Can not be simulated on local, so please combine you own business simulation.',
-    invalidToken: 'The token used is invalid.',
-    passwordReset: 'Password Reset',
-    createPassword: 'Create password',
-    passwordResetSuccessful: 'Password reset was successful',
-    passwordAndConfirmNotMatch: 'The new password and your confirmation do not match.'
   },
   documentation: {
     documentation: 'Documentation',
@@ -110,46 +136,22 @@ export default {
     goRepository: 'go to repository',
     seeDocumentation: 'See documentation'
   },
-  permission: {
-    addRole: 'New Role',
-    editPermission: 'Edit',
-    roles: 'Your roles',
-    switchRoles: 'Switch roles',
-    tips: 'In some cases, using v-permission will have no effect. For example: Element-UI  el-tab or el-table-column and other scenes that dynamically render dom. You can only do this with v-if.',
-    delete: 'Delete',
-    confirm: 'Confirm',
-    cancel: 'Cancel'
-  },
-  guide: {
-    description: 'The guide page is useful for some people who entered the project for the first time. You can briefly introduce the features of the project. Demo is based on ',
-    button: 'Show Guide'
-  },
   components: {
-    date: {
-      Today: 'Today',
-      Yesterday: 'Yesterday',
-      Week: 'Last week',
-      LastMonth: 'Last month',
-      CurrentMonth: 'The current month'
-    },
     documentation: 'Documentation',
     binaryButton: 'Upload file',
     binaryTip: 'Only files with a size smaller than 500kb',
     imageError: 'The image exceeds 2MB and does not comply with the valid formats!',
     contextMenuActions: 'Actions',
     contextMenuReferences: 'References',
-    ExportTo: 'Export to',
     contextMenuDownload: 'Download',
-    dateStartPlaceholder: 'Start date',
-    dateEndPlaceholder: 'End date',
     dialogCancelButton: 'Cancel',
     dialogConfirmButton: 'Confirm',
     filterableItems: 'Optional Columns',
+    searchRecord: 'Search Record',
     fixedleItems: 'Fixed Columns',
-    resetAllFilters: 'Reset all filters',
     switchActiveText: 'Yes',
     switchInactiveText: 'Not',
-    contextFieldTitle: 'Context Information'
+    todoList: 'Todo List'
   },
   grid: {
     recordAccess: {
@@ -174,31 +176,21 @@ export default {
     searchCriteria: 'Search Criteria',
     unsupportedSorry: 'Sorry',
     unsupportedHeadline: 'This view is currently unavailable',
-    unsupportedInfo: 'Please check that the view is supported in this version, or click the button below to return to the homepage.',
+    unsupportedInfo: 'Please check that the view is supported in this version, or click the button below to return to the homepage',
     unsupportedButton: 'Back to dashboard',
     reportView: 'Report Views',
     printFormat: 'Print Formats',
     drillTable: 'Drill Down'
   },
   table: {
-    ProcessActivity: {
-      Name: 'Name',
-      zoomIn: 'Zoom in',
-      Description: 'Description',
-      actions: 'Action',
-      complete: 'Complete',
-      error: 'Error',
-      status: 'Status',
-      Logs: 'Summary',
-      summary: 'Summary',
-      Help: 'Help',
-      FileName: 'FileName',
-      Output: 'Output'
-    },
     dataTable: {
       search: 'Search',
       selected: 'Selected',
+      nextRecord: 'Next',
+      previousRecord: 'Previous',
+      recordsPage: 'Records Page',
       deleteSelection: 'Delete Selected Records',
+      disabledSelection: 'Disable Selected Records',
       advancedQuery: 'Advanced Query',
       exportZip: 'Export Zip',
       showAllColumns: 'Show All Columns',
@@ -208,7 +200,8 @@ export default {
       showAllAvailableColumns: 'Show All Available Columns',
       exportRecordTable: 'Export Selected Records',
       showTotal: 'Show Totals',
-      hiddenTotal: 'Hidden Totals'
+      hiddenTotal: 'Hidden Totals',
+      batchEntry: 'Batch Entry'
     },
     recentItems: {
       search: 'Filter by name, description or date',
@@ -216,50 +209,6 @@ export default {
       name: 'Name',
       description: 'Description'
     }
-  },
-  example: {
-    warning: 'Creating and editing pages cannot be cached by keep-alive because keep-alive include does not currently support caching based on routes, so it is currently cached based on component name. If you want to achieve a similar caching effect, you can use a browser caching scheme such as localStorage. Or do not use keep-alive include to cache all pages directly. See details'
-  },
-  errorLog: {
-    tips: 'Please click the bug icon in the upper right corner',
-    description: 'Now the management system are basically the form of the spa, it enhances the user experience, but it also increases the possibility of page problems, a small negligence may lead to the entire page deadlock. Fortunately Vue provides a way to catch handling exceptions, where you can handle errors or report exceptions.',
-    documentation: 'Document introduction'
-  },
-  excel: {
-    export: 'Export',
-    selectedExport: 'Export Selected Items',
-    placeholder: 'Please enter the file name (default excel-list)'
-  },
-  zip: {
-    export: 'Export',
-    placeholder: 'Please enter the file name (default file)'
-  },
-  pdf: {
-    tips: 'Here we use window.print() to implement the feature of downloading PDF.'
-  },
-  theme: {
-    change: 'Change Theme',
-    documentation: 'Theme documentation',
-    tips: 'Tips: It is different from the theme-pick on the navbar is two different skinning methods, each with different application scenarios. Refer to the documentation for details.'
-  },
-  tagsView: {
-    refresh: 'Refresh',
-    close: 'Close',
-    closeOthers: 'Close Others',
-    closeAll: 'Close All',
-    newRecord: 'New Record',
-    seeRecord: 'See Record',
-    advancedQuery: 'Advanced Query'
-  },
-  settings: {
-    title: 'setting',
-    theme: 'Theme Color',
-    tagsView: 'Open Tags-View',
-    fixedHeader: 'Fixed Header',
-    sidebarLogo: 'Sidebar Logo',
-    showContextMenu: 'Show Context Information',
-    isShowTitle: 'Show Títle',
-    isShowMenu: 'Show Menu'
   },
   profile: {
     aboutMe: 'About Me',
@@ -274,23 +223,25 @@ export default {
     description: 'Description',
     changeRole: 'Change role',
     changeLanguage: 'Change language',
-    changeLanguagePlaceholder: 'Choose a language'
-  },
-  window,
-  field: {
-    field: 'Field',
-    info: 'Information',
-    calculator: 'Calculator',
-    preference: 'Preference',
-    logsField: 'Field Change Log',
-    logsFieldEmpty: 'The field is still unchanged',
-    contextInfo: 'Context Info',
-    container: {
-      help: 'Help',
-      defaultValue: 'Default Value',
-      description: 'Description'
+    changeLanguagePlaceholder: 'Choose a language',
+    activityLogs: 'Activity Logs',
+    notice: 'Notice',
+    request: 'Request',
+    workflowActivities: 'Workflow Activities',
+    systemInformation: {
+      tabLabel: 'System Information',
+      releaseNumber: 'Release',
+      backEndVersion: 'Back-End Version',
+      dateVersion: 'Date Versión',
+      frontEndVersion: 'Front-End Version',
+      proxyVersion: 'Proxy Version',
+      deploymentName: 'Deployment Name',
+      dictionaryVersion: 'Dictionary RS version',
+      s3Version: 'S3 Gateway RS Version',
+      reportEngine: 'Report Engine Version'
     }
   },
+  window,
   data: {
     createRecordSuccessful: 'New record created successfully',
     createNewRecord: 'Mode New record',
@@ -326,44 +277,24 @@ export default {
     emptyNote: 'Este registro no posee ninguna nota',
     descriptionNote: 'Add Note or Comment to Record'
   },
-  sequence: {
-    available: 'Available',
-    sequence: 'Sequence'
-  },
-  operators: {
-    compareSearch: 'Compare the Search',
-    operator: 'Comparison operator',
-    EQUAL: 'Equal to "="',
-    NOT_EQUAL: 'Not equal to "<>"',
-    LIKE: 'Like "~"',
-    NOT_LIKE: 'Not like "!~"',
-    GREATER: 'Greater than ">"',
-    GREATER_EQUAL: 'Greater than equal to ">="',
-    LESS: 'Less than "<"',
-    LESS_EQUAL: 'Less than equal to "<="',
-    BETWEEN: 'Between ">-<"',
-    NOT_NULL: 'Is not null',
-    NULL: 'Is null',
-    IN: 'Include "()"',
-    NOT_IN: 'Not include "!()"'
-  },
   quickAccess: {
     newRecord: 'Quick Access to Create New Record',
     listRecords: 'Quick Access to List All Records',
-    searchWithEnter: 'Press enter to search for the product by Product Code, Name or UPC.'
-  },
-  businessPartner: {
-    notFound: 'Business partner not found.',
-    emptyBusinessPartner: 'Use the filters to search for a business partner by Code, Name, Email and Phone Number'
+    searchWithEnter: 'Press enter to search for the product by Product Code, Name or UPC'
   },
   form: {
+    ...form,
     pos: {
       title: 'POS',
       priceList: 'Price List',
+      emptyPos: 'No Associated Point of Sale',
       releaseOrder: 'Release It',
       applyDiscountOnOrder: 'Apply Discount Based on Amount',
       fieldDiscountAmount: 'Discount Amount',
       salesDiscountOff: 'Apply Discount on Sale',
+      applyDiscountToAllLines: 'Apply Discount to All Lines',
+      returnProduct: 'Return Product',
+      createNewOrderRMA: 'Create New Order from RMA',
       discountRate: '% Descuent',
       optionsPoinSales: {
         title: 'Quick Point of Sales Options',
@@ -379,25 +310,30 @@ export default {
           cancelSaleTransaction: 'Cancel Sale Transaction',
           createPos: 'Create Point of Sale Withdrawal',
           print: 'Print Document',
+          preview: 'View Preview',
           cancelOrder: 'Cancel Order',
           orderRemoved: 'Order Deleted',
           copyOrder: 'Copy Order',
+          newOrderFromRMA: 'Create New Order From RMA',
           createNewReturnOrder: 'Create a new return order',
           confirmDelivery: 'Confirm Delivery',
+          deliverAllProducts: 'Deliver all products',
           emptyProductDelivery: 'Product not in Order'
         },
         cashManagement: {
           title: 'Cash Management',
-          cashOpening: 'Cash Opening',
-          closeBox: 'Close the box',
+          cashOpening: 'Opening',
+          closeBox: 'Close',
           assignSeller: 'Assign seller',
           unassignSeller: 'Unassign Seller',
           transfer: 'Transfer',
-          moneyIncome: 'Money Income',
+          moneyIncome: 'Income',
+          moneyEgress: 'Egress',
           cashOpenBox: 'Cashbox Opened',
-          cashwithdrawal: 'Cash Withdrawal',
+          cashwithdrawal: 'Withdrawal',
           successfulCashWithdrawal: 'Cash withdrawal successful',
-          cashCloseBox: 'Cashbox Closed'
+          cashCloseBox: 'Cashbox Closed',
+          detailedCloseBox: 'Detailed Closing'
         },
         generalOptions: {
           title: 'General Options',
@@ -407,7 +343,8 @@ export default {
           changePriceList: 'Change Price List',
           dateTo: 'Date To',
           dateOrder: 'Date Order',
-          dateFrom: 'Date From'
+          dateFrom: 'Date From',
+          productQuery: 'Product Query'
         }
       },
       generalNotifications: {
@@ -417,6 +354,12 @@ export default {
       tableProduct: {
         product: 'Product',
         quantity: 'Quantity',
+        isQuantityFromOrderLine: 'Complete Quantity of the Line',
+        basePrice: 'Base Price',
+        baseQuantity: 'Base Quantity',
+        uom: 'UOM',
+        unitOfMeasure: 'Unit of Measure',
+        baseMeasurementUnit: 'Base Measurement Unit',
         options: 'Options',
         editQuantities: 'Edit Quantities',
         pin: 'Insert Pin',
@@ -424,7 +367,8 @@ export default {
         taxAmount: 'Tax',
         taxRate: '% Imp',
         displayDiscountAmount: 'Discount',
-        empty: 'Enter the product name, code or UPC'
+        empty: 'Enter the product name, code or UPC',
+        movementQuantity: 'Movement Quantity'
       },
       order: {
         order: 'Order',
@@ -450,8 +394,9 @@ export default {
           addBillingAddress: 'Add Billing Address',
           billingAddress: 'Billing Address',
           shippingAddress: 'Shipping Address',
-          withoutSetting: 'Sin Establecer',
+          withoutSetting: 'Without Setting',
           taxId: 'Tax Identification',
+          searchValue: 'Search Value',
           address: {
             edit: 'Edit',
             selectAddress: 'Select Address',
@@ -479,9 +424,20 @@ export default {
         convertedAmount: 'Converted',
         fullPayment: 'Full Payment',
         dayRate: 'Day Rate',
-        noDayRate: 'No daily rate has been generated for the currency.',
+        noDayRate: 'No daily rate has been generated for the currency',
         refund: 'Refund',
         paymentMethods: 'Payment Methods',
+        paymentMethod: 'Payment Method',
+        customer: 'Customer',
+        invoceNr: 'Invoce',
+        orderNr: 'Document',
+        seller: 'Seller',
+        currency: 'Currency',
+        amount: 'Amount',
+        bankAcount: 'Bank Acount',
+        isCashWith: 'Use Cash Funds',
+        collectionAgent: 'Collection Agent',
+        transferFunds: 'Transfer Funds',
         emptyRate: 'No conversion rate to date',
         Currency: 'Currency',
         TenderType: {
@@ -524,54 +480,47 @@ export default {
       },
       pinMessage: {
         pin: 'Enter Pin for ',
+        authorized: 'Authorized PIN',
         documentType: 'change document type',
         warehouse: 'change warehouse',
         price: 'change price',
         qtyEntered: 'change quantity',
+        updateQtyEntered: 'Updated Quantity',
+        updatePriceEntered: 'Updated Price',
+        updateDiscountEntered: 'Updated Discount',
         priceList: 'change price list',
         discount: 'add discount',
         delete: 'delete product',
         addProduct: 'add product',
         invoiceOpen: 'generate invoice with an open balance',
         newOrder: 'create new order'
+      },
+      orderRMA: {
+        addProduct: 'Product Added',
+        deleteProduct: 'Deleted Product',
+        updateProduct: 'Update Product',
+        document: 'The Document',
+        process: 'Was Processed',
+        createNewSubstituteOrder: 'Create New Substitute Order'
       }
-    },
-    priceChecking: {
-      productNotFound: 'Unavailable Product',
-      basePrice: 'Base price'
     },
     byInvoice: {
       title: 'Aisle Vendor Orders to be Invoiced',
-      searchCompleteOrders: 'Search complete orders',
-      label: 'To be invoiced',
-      toDeliver: 'To be delivered',
-      toCollect: 'Receivable',
+      searchCompleteOrders: 'Completed',
+      aisleSales: 'Sales Aisle',
+      label: 'Invoiced',
+      toDeliver: 'Delivered',
+      toCollect: 'On Credit',
+      cancelled: 'Voided',
+      closed: 'Closed',
+      proposals: 'Proposals',
+      return: 'Returns',
       salesRepresentative: 'Sales Agent',
       onlyAllocated: 'Only allocated to current point of sales',
       businessPartner: 'Business Partner',
       copyShippingAddress: 'Copy shipping address',
-      documentNo: 'Document No.',
+      documentNo: 'Document No',
       emptyList: 'Use the filters to search for orders'
-    },
-    productInfo: {
-      product: 'Product',
-      codeProduct: 'Códe Product',
-      productInformation: 'Product Information',
-      chargerInformation: 'Charger Information',
-      code: 'Code',
-      name: 'Name',
-      lastName: 'Nombre2',
-      id: 'ID',
-      description: 'Description',
-      price: 'Price',
-      quantityOnHand: 'Quantity On Hand',
-      taxAmount: 'Tax Amount',
-      totalIncludingTax: 'Total Including Tax',
-      grandTotal: 'Grand Total',
-      grandTotalConverted: 'Grand Total Converted',
-      quantityAvailable: 'Available',
-      upc: 'UPC / EAN',
-      UM: 'UM'
     },
     guideSteps: {
       productValue: {
@@ -613,49 +562,6 @@ export default {
       },
       toolsPoint: {
         title: 'Point of Sale Tools'
-      }
-    },
-    activity: {
-      title: 'Your Workflow Activities',
-      filtersSearch: {
-        history: 'History records',
-        forward: 'Re-send'
-      },
-      table: {
-        priority: 'Priority',
-        node: 'Node'
-      },
-      workflow: {
-        title: 'Workflow',
-        description: 'Workflow life cycle diagram. The highlighted Node is the one currently awaiting verification.'
-      },
-      workflowLogs: {
-        title: 'Change Log',
-        description: 'Workflow timeline'
-      }
-    },
-    match: {
-      title: {
-        invoice: 'Invoice',
-        deliveryReceipt: 'Delivery / Receipt'
-      },
-      description: {
-        searchCriteria: 'Select a Business Partner to check the pending documents to be assigned',
-        invoice: 'Select an Invoice to assign the corresponding Delivery/Receipt to',
-        deliveryReceipt: 'Select at least one Delivery/Receipt to which you require to assign the selected invoice'
-      },
-      field: {
-        toAssigned: 'To be Assigned',
-        assigning: 'Assigning',
-        difference: 'Difference'
-      },
-      filtersSearch: {
-        sameBusinessPartner: 'Same Business Partner',
-        sameProduct: 'Same Product ',
-        sameQuantity: 'SameQuantity '
-      },
-      table: {
-        nrDocument: 'Nr Document'
       }
     },
     weight: 'Weight'

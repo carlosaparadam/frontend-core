@@ -1,7 +1,7 @@
 <template>
   <el-row class="item-wrapper">
     <el-col :span="3" :style="iconMargin">
-      <i v-if="icon.includes('el-icon')" class="icon sub-el-icon" />
+      <i v-if="icon.includes('el-icon')" :class="'icon sub-el-icon ' + icon" />
       <svg-icon v-else :icon-class="icon" />
     </el-col>
     <el-col :span="21">
@@ -48,7 +48,7 @@ export default {
     white-space: break-spaces;
     line-height: 20px;
     height: auto;
-    padding: 18px 23px 18px 0;
+    padding: 8px 23px 8px 0;
   }
 
   .item-title {

@@ -4,8 +4,8 @@ const path = require('path')
 // const fs = require('fs')
 const config = require('./config/default.json')
 const defaultSettings = require('./src/settings.js')
-const theme = config.theme
-const themeComponents = theme + '/components'
+// const theme = config.theme
+// const themeComponents = theme + '/components'
 function resolve(dir) {
   return path.join(__dirname, dir)
 }
@@ -18,6 +18,12 @@ const name = defaultSettings.title || 'Adempiere Vue' // page title
 // You can change the port by the following method:
 // port = 9527 npm run dev OR npm run dev --port = 9527
 const port = process.env.port || process.env.npm_config_port || 9527 // dev port
+
+let publicPathValue = config.server.publicPath
+if (process.env.NODE_ENV === 'development') {
+  publicPathValue = '/'
+}
+
 // All configuration item explanations can be find in https://cli.vuejs.org/config/
 module.exports = {
   /**
@@ -27,7 +33,7 @@ module.exports = {
    * In most cases please use '/' !!!
    * Detail: https://cli.vuejs.org/config/#publicpath
    */
-  publicPath: '/',
+  publicPath: publicPathValue,
   outputDir: 'dist',
   assetsDir: 'static',
   lintOnSave: process.env.NODE_ENV === 'development',
@@ -52,10 +58,10 @@ module.exports = {
     // provide the app's title in webpack's name field, so that
     // it can be accessed in index.html to inject the correct title.
     name: name,
+    devtool: "source-map",
     resolve: {
       alias: {
-        '@': resolve('src'),
-        '@theme': resolve(theme)
+        '@': resolve('src')
       }
     }
   },
@@ -120,7 +126,7 @@ module.exports = {
                 },
                 commons: {
                   name: 'chunk-commons',
-                  test: resolve(themeComponents), // can customize your rules
+                  test: resolve('src/components'), // can customize your rules
                   minChunks: 3, //  minimum common number
                   priority: 5,
                   reuseExistingChunk: true

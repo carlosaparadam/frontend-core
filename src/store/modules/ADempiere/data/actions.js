@@ -1,36 +1,29 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import language from '@/lang'
-
-// constants
+// Constants
 import { TABLE, TABLE_DIRECT } from '@/utils/ADempiere/references'
 
-// api request methods
-import {
-  requestGetContextInfoValue
-} from '@/api/ADempiere/window'
-
-// utils and helper methods
-import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
+// Utils and Helper Methods
+import { isEmptyValue, getTypeOfValue } from '@/utils/ADempiere/valueUtils.js'
 import { convertArrayKeyValueToObject } from '@/utils/ADempiere/formatValue/iterableFormat.js'
-import { typeValue } from '@/utils/ADempiere/valueUtils.js'
-import {
-  getPreference
-} from '@/utils/ADempiere/contextUtils'
+import { getPreference } from '@/utils/ADempiere/contextUtils'
 import { showMessage } from '@/utils/ADempiere/notification'
 
 const actions = {
@@ -91,7 +84,7 @@ const actions = {
       values.isSendServer = false
 
       // get the link column name from the tab
-      let linkColumnName = tabPanel.linkColumnName
+      let linkColumnName = tabPanel.link_column_name
       if (isEmptyValue(linkColumnName)) {
         // get the link column name from field list
         linkColumnName = tabPanel.fieldLinkColumnName
@@ -116,14 +109,14 @@ const actions = {
           // TODO: Evaluate if is field is read only and FieldSelect
           .filter(itemField => {
             return itemField.componentPath === 'FieldSelect' ||
-              typeValue(values[itemField.columnName]) === 'OBJECT' ||
+              getTypeOfValue(values[itemField.columnName]) === 'OBJECT' ||
               itemField.isGetServerValue
           })
           .map(async itemField => {
             const { columnName, componentPath } = itemField
             let valueGetDisplayColumn = values[columnName]
 
-            if (typeValue(values[columnName]) === 'OBJECT') {
+            if (getTypeOfValue(values[columnName]) === 'OBJECT') {
               if (componentPath === 'FieldSelect') {
                 values[columnName] = ' '
                 values[itemField.displayColumnName] = ' '
@@ -155,13 +148,14 @@ const actions = {
 
             // TODO: Add support with displayedValue response
             if (!isEmptyValue(valueGetDisplayColumn) &&
-              typeValue(valueGetDisplayColumn) === 'OBJECT' &&
+              getTypeOfValue(valueGetDisplayColumn) === 'OBJECT' &&
               valueGetDisplayColumn.isSQL) {
               // get value from Query
               valueGetDisplayColumn = await dispatch('getDefaultValueFromServer', {
                 parentUuid,
                 containerUuid,
-                query: itemField.defaultValue
+                query: itemField.default_value,
+                columnName
               })
               values[columnName] = valueGetDisplayColumn
             }
@@ -175,13 +169,13 @@ const actions = {
             const options = rootGetters.getStoredLookupAll({
               parentUuid,
               containerUuid,
-              contextColumnNames: itemField.reference.contextColumnNames,
-              contextColumnNamesByDefaultValue: itemField.contextColumnNames,
+              contextColumnNames: itemField.reference.context_column_names,
+              contextColumnNamesByDefaultValue: itemField.context_column_names,
               //
               id: itemField.id,
               fieldUuid: itemField.uuid,
               columnName: itemField.columnName,
-              tableName: itemField.reference.tableName,
+              tableName: itemField.referenceTableName,
               value: valueGetDisplayColumn
             })
 
@@ -210,12 +204,12 @@ const actions = {
             const { displayedValue } = await dispatch('getLookupItemFromServer', {
               parentUuid,
               containerUuid,
-              contextColumnNames: itemField.reference.contextColumnNames,
+              contextColumnNames: itemField.reference.context_column_names,
               //
               id: itemField.id,
               fieldUuid: itemField.uuid,
               columnName: itemField.columnName,
-              tableName: itemField.reference.tableName,
+              tableName: itemField.referenceTableName,
               value: valueGetDisplayColumn
             })
             values[itemField.displayColumnName] = displayedValue
@@ -264,7 +258,6 @@ const actions = {
       return itemRecord.containerUuid !== viewUuid
     })
     commit('deleteRecordContainer', record)
-    dispatch('setTabSequenceRecord', [])
 
     if (setNews.length) {
       setNews.forEach(uuid => {
@@ -383,14 +376,14 @@ const actions = {
       if (isSendCallout && !withOutColumnNames.includes(field.columnName) &&
         !isEmptyValue(newValue) && !isEmptyValue(field.callout)) {
         withOutColumnNames.push(field.columnName)
-        dispatch('runCallout', {
+        dispatch('startCallout', {
           parentUuid,
           containerUuid,
           tableName: field.tableName,
           columnName: field.columnName,
           callout: field.callout,
+          displayType: field.display_type,
           value: newValue,
-          valueType: field.valueType,
           withOutColumnNames,
           row,
           inTable: true
@@ -426,44 +419,19 @@ const actions = {
       }
     }
   },
-  getContextInfoValueFromServer({ commit, getters }, {
-    contextInfoId,
-    contextInfoUuid,
-    sqlStatement
-  }) {
-    // const contextInforField = getters.getContextInfoField(contextInfoUuid, sqlStatement)
-    // if (contextInforField) {
-    //   return contextInforField
-    // }
-    return requestGetContextInfoValue({
-      id: contextInfoId,
-      uuid: contextInfoUuid,
-      query: sqlStatement
-    })
-      .then(contextInfoResponse => {
-        commit('setContextInfoField', {
-          contextInfoUuid,
-          sqlStatement,
-          ...contextInfoResponse
-        })
-        return contextInfoResponse
-      })
-      .catch(error => {
-        console.warn(`Error ${error.code} getting context info value for field ${error.message}.`)
-      })
-  },
 
-  resetStateBusinessData({ commit }) {
-    commit('resetStateContainerInfo')
+  resetStateBusinessData({ commit, dispatch }) {
+    // commit('resetStateContainerInfo')
     commit('setInitialContext', {})
     commit('resetStateTranslations')
     commit('resetStateBusinessData')
     commit('resetContextMenu')
     commit('resetStateTranslations')
     commit('resetStateLookup')
-    commit('resetStateProcessControl')
+    // commit('resetStateProcessControl')
     commit('resetStateUtils')
-    commit('resetStateWindowControl')
+    // commit('resetStateWindowControl')
+    dispatch('resetStateFormData')
   }
 }
 

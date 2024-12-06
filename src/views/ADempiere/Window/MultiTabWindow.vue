@@ -1,7 +1,7 @@
 <!--
  ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
- Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
- Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com www.erpya.com
+ Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
  the Free Software Foundation, either version 3 of the License, or
@@ -9,62 +9,72 @@
 
  This program is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  GNU General Public License for more details.
 
  You should have received a copy of the GNU General Public License
- along with this program.  If not, see <https:www.gnu.org/licenses/>.
+ along with this program. If not, see <https:www.gnu.org/licenses/>.
 -->
 
 <template>
-  <div>
-    <embedded
-      :visible="showRecordAccess"
-    >
-      <record-access />
-    </embedded>
+  <div style="height: 90vh !important;width: 100% !important;overflow: auto;">
+    <div id="tab-manager" :style="sizeTab">
+      <embedded
+        :visible="showRecordAccess"
+      >
+        <record-access />
+      </embedded>
 
-    <tab-manager
-      :parent-uuid="windowMetadata.uuid"
-      :container-manager="containerManager"
-      :tabs-list="windowMetadata.tabsListParent"
-      :all-tabs-list="allTabsList"
-    />
+      <tab-manager
+        ref="tab-manager"
+        class="tab-manager"
+        :parent-uuid="windowMetadata.uuid"
+        :container-manager="containerManager"
+        :tabs-list="windowMetadata.tabsListParent"
+        :all-tabs-list="allTabsList"
+        :actions-manager="actionsManager"
+        :style="styleScroll"
+      />
 
-    <tab-manager-child
-      v-if="isWithChildsTab"
-      :parent-uuid="windowMetadata.uuid"
-      :container-manager="containerManager"
-      :tabs-list="windowMetadata.tabsListChild"
-      :all-tabs-list="allTabsList"
-    />
+      <modal-dialog
+        v-if="!isEmptyValue(processUuid)"
+        :container-manager="containerManagerProcess"
+        :parent-uuid="currentTabUuid"
+        :container-uuid="processUuid"
+      />
+    </div>
 
-    <modal-dialog
-      v-if="!isEmptyValue(processUuid)"
-      :container-manager="containerManagerProcess"
-      :parent-uuid="currentTabUuid"
-      :container-uuid="processUuid"
-    />
+    <div v-if="isWithChildsTab" id="tab-manager-child" :style="sizeTabChild">
+      <tab-manager-child
+        class="tab-manager"
+        :parent-uuid="windowMetadata.uuid"
+        :container-manager="containerManager"
+        :tabs-list="windowMetadata.tabsListChild"
+        :all-tabs-list="allTabsList"
+        :actions-manager="actionsManager"
+      />
+    </div>
   </div>
 </template>
 
 <script>
-import { defineComponent, computed, ref } from '@vue/composition-api'
+import { defineComponent, computed, ref, watch } from '@vue/composition-api'
 
-import router from '@/router'
+import language from '@/lang'
 import store from '@/store'
 
-// components and mixins
-import ActionMenu from '@theme/components/ADempiere/ActionMenu/index.vue'
-import Embedded from '@theme/components/ADempiere/Dialog/embedded'
-import RecordAccess from '@theme/components/ADempiere/RecordAccess'
-import ModalDialog from '@theme/components/ADempiere/ModalDialog/index.vue'
-import TabManager from '@theme/components/ADempiere/TabManager/index.vue'
-import TabManagerChild from '@theme/components/ADempiere/TabManager/tabChild.vue'
+// Components and Mixins
+import ActionMenu from '@/components/ADempiere/ActionMenu/index.vue'
+import LoadingView from '@/components/ADempiere/LoadingView/index.vue'
+import Embedded from '@/components/ADempiere/Dialog/embedded'
+import RecordAccess from '@/components/ADempiere/RecordAccess'
+import ModalDialog from '@/components/ADempiere/ModalDialog/index.vue'
+import TabManager from '@/components/ADempiere/TabManager/index.vue'
+import TabManagerChild from '@/components/ADempiere/TabManager/tabChild.vue'
 
-// utils and helpers methods
-import { convertObjectToKeyValue } from '@/utils/ADempiere/valueFormat.js'
+// Utils and Helper Methods
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
+import useFullScreenContainer from '@/components/ADempiere/ContainerOptions/FullScreenContainer/useFullScreenContainer'
 
 export default defineComponent({
   name: 'MultiTabWindow',
@@ -75,7 +85,8 @@ export default defineComponent({
     Embedded,
     ModalDialog,
     TabManager,
-    TabManagerChild
+    TabManagerChild,
+    LoadingView
   },
 
   props: {
@@ -97,129 +108,173 @@ export default defineComponent({
     }
   },
 
-  setup(props, { root }) {
+  setup(props) {
+    /**
+     * Const
+     */
+    const containerManager = {
+      ...props.windowManager
+    }
+
+    /**
+     * Ref
+     */
+    const allTabsList = ref([])
+
+    const isLoadWindows = ref(false)
+
+    const index = ref(0)
+
+    /**
+     * Computed
+     */
     const isWithChildsTab = computed(() => {
+      if (store.getters['settings/getFullGridMode'] && props.windowMetadata.currentTab.isShowedTableRecords) return false
       return !isEmptyValue(props.windowMetadata.tabsListChild)
     })
-
-    const allTabsList = ref([])
 
     const showRecordAccess = computed(() => {
       return store.getters.getShowPanelRecordAccess
     })
 
-    const currentTabUuid = computed(() => {
-      return store.getters.getCurrentTab(props.windowMetadata.uuid).uuid
+    const settingsFullGridMode = computed(() => {
+      return store.state.settings.fullGridMode
     })
 
-    const containerManager = {
-      ...props.windowManager,
+    const isMobile = computed(() => {
+      return store.state.app.device === 'mobile'
+    })
 
-      actionPerformed: ({ field, value }) => {
-        return store.dispatch('actionPerformed', {
-          field,
-          value
-        })
-          .then(response => {
-            if (response.type === 'createEntity') {
-              router.push({
-                name: root.$route.name,
-                query: {
-                  ...root.$route.query,
-                  action: response.uuid,
-                  recordId: response.id
-                },
-                params: {
-                  ...root.$route.params,
-                  recordId: response.id
-                }
-              }, () => {})
-            }
+    const currentTabUuid = computed(() => {
+      return store.getters.getCurrentTabUuid(props.windowMetadata.uuid)
+    })
 
-            const { parentUuid, containerUuid } = field
-            const tab = store.getters.getStoredTab(parentUuid, containerUuid)
-
-            // set response values
-            store.dispatch('updateValuesOfContainer', {
-              parentUuid,
-              containerUuid,
-              isOverWriteParent: tab.isParentTab,
-              attributes: response.attributes
-            })
-          })
-      },
-
-      seekRecord: ({ row, parentUuid, containerUuid }) => {
-        if (isEmptyValue(row)) {
-          store.dispatch('setTabDefaultValues', {
-            parentUuid,
-            containerUuid
-          })
-          return
-        }
-        const tab = store.getters.getStoredTab(parentUuid, containerUuid)
-        if (tab.isParentTab) {
-          router.push({
-            name: root.$route.name,
-            query: {
-              ...root.$route.query,
-              action: row.UUID,
-              tableName: tab.tableName,
-              recordId: row[`${tab.tableName}_ID`]
-            },
-            params: {
-              ...root.$route.params,
-              tableName: tab.tableName,
-              recordId: row[`${tab.tableName}_ID`]
-            }
-          }, () => {})
-        }
-
-        const fieldsList = store.getters.getStoredFieldsFromTab(parentUuid, containerUuid)
-        const defaultValues = store.getters.getParsedDefaultValues({
-          parentUuid,
-          containerUuid,
-          isSOTrxMenu: root.$route.meta.isSalesTransaction,
-          fieldsList,
-          formatToReturn: 'object'
-        })
-
-        const attributes = convertObjectToKeyValue({
-          object: Object.assign(defaultValues, row)
-        })
-
-        store.dispatch('notifyPanelChange', {
-          parentUuid,
-          containerUuid,
-          attributes,
-          isOverWriteParent: tab.isParentTab
-        })
-
-        // active logics with set records values
-        fieldsList.forEach(field => {
-          // change Dependents
-          store.dispatch('changeDependentFieldsList', {
-            field,
-            fieldsList,
-            containerManager: props.windowManager
-          })
-        })
+    const styleFullScreen = computed(() => {
+      if (!isWithChildsTab.value) {
+        return 'height: 0% !important'
+      } else {
+        // if (props.windowMetadata.isFullScreenTabsParent) {
+        return 'height: 550px !important'
+        // } else if (!isEmptyVAlue(props.windowMetadata.isFullScreenTabsChildren) && props.windowMetadata.isFullScreenTabsChildren) {
+        //   return 'height: 550px !important'
+        // }
       }
 
-    }
+      // return 'height: 50% !important'
+    })
+
+    const isViewFullScreenChild = computed(() => {
+      const { isViewFullScreenChild } = useFullScreenContainer({
+        parentUuid: props.windowMetadata.currentTabChild.parentUuid,
+        containerUuid: props.windowMetadata.currentTabChild.containerUuid
+      })
+      return isViewFullScreenChild.value
+    })
+
+    const isViewFullScreenParent = computed(() => {
+      const { isViewFullScreenParent } = useFullScreenContainer({
+        parentUuid: props.windowMetadata.currentTab.parentUuid,
+        containerUuid: props.windowMetadata.currentTab.containerUuid
+      })
+      return isViewFullScreenParent.value
+    })
+
+    const sizeTab = computed(() => {
+      if (!isWithChildsTab.value) {
+        return 'height: 100% !important'
+      }
+      if (isViewFullScreenParent.value) {
+        return 'height: 80% !important'
+      }
+      return ''
+    })
+
+    const sizeTabChild = computed(() => {
+      if (isViewFullScreenChild.value) {
+        return 'height: 80% !important'
+      }
+      return ''
+    })
+
+    const actionsManager = computed(() => {
+      return {
+        parentUuid: props.windowMetadata.uuid,
+        containerUuid: currentTabUuid.value,
+        defaultActionName: language.t('actionMenu.createNewRecord'),
+        tableName: store.getters.getTableName(props.windowMetadata.uuid, currentTabUuid.value),
+        getActionList: () => {
+          return store.getters.getStoredActionsMenu({
+            containerUuid: currentTabUuid.value
+          })
+        }
+      }
+    })
+
+    const isFullGrid = computed(() => {
+      return props.windowMetadata.currentTab.isParentTab && props.windowMetadata.currentTab.isShowedTableRecords
+    })
+
+    const showFullGridMode = computed(() => {
+      return store.getters['settings/getFullGridMode']
+    })
+
+    const styleScroll = computed(() => {
+      if (showFullGridMode.value) return 'overflow: auto;'
+      return 'min-height: 84vh !important;'
+    })
+
+    /**
+     * Watch
+     */
+
+    watch(isFullGrid, (newValue, oldValue) => {
+      if (settingsFullGridMode.value && !newValue && isWithChildsTab.value && index.value === 0) {
+        index.value = 1
+        isLoadWindows.value = true
+        setTimeout(() => {
+          isLoadWindows.value = false
+        }, 500)
+      }
+    })
 
     if (props.windowMetadata.tabsList) {
       allTabsList.value = props.windowMetadata.tabsList
     }
 
     return {
-      currentTabUuid,
+      // Consts
+      containerManager,
+      // Refs
       allTabsList,
-      showRecordAccess,
+      isLoadWindows,
+      index,
+      // Computeds
       isWithChildsTab,
-      containerManager
+      showRecordAccess,
+      settingsFullGridMode,
+      isMobile,
+      currentTabUuid,
+      styleFullScreen,
+      isViewFullScreenChild,
+      isViewFullScreenParent,
+      sizeTab,
+      sizeTabChild,
+      actionsManager,
+      isFullGrid,
+      styleScroll
     }
   }
 
 })
 </script>
+
+<style lang="scss">
+// MultiTabWindow
+.el-main {
+  padding-top: 0px;
+  padding-bottom: 0px;
+}
+.tab-manager {
+  height: 100%;
+}
+</style>

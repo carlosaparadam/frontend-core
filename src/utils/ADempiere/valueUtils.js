@@ -1,27 +1,45 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Yamel Senih ysenih@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 import language from '@/lang'
-import { getResoursePath } from '@/utils/ADempiere/resource.js'
-// constants
-import { TABLE, TABLE_DIRECT } from '@/utils/ADempiere/references.js'
+import router from '@/router'
+import store from '@/store'
 
-// utils and helper methods
-import { convertBooleanToString, convertStringToBoolean } from '@/utils/ADempiere/formatValue/booleanFormat.js'
+// Constants
+import { SPECIAL_ZERO_ID_TABLES } from '@/utils/ADempiere//constants/systemColumns'
+import {
+  ACCOUNT_ELEMENT, IMAGE,
+  LOCATOR_WAREHOUSE, PRODUCT_ATTRIBUTE, RESOURCE_ASSIGNMENT,
+  LIST, SEARCH, TABLE, TABLE_DIRECT
+} from '@/utils/ADempiere/references.js'
+import {
+  RANGE_VALUE_OPERATORS_LIST,
+  IGNORE_VALUE_OPERATORS_LIST,
+  MULTIPLE_VALUES_OPERATORS_LIST
+} from '@/utils/ADempiere/dataUtils'
+import { FIELDS_DATE } from '@/utils/ADempiere/references'
+import { DISPLAY_COLUMN_PREFIX, IDENTIFIER_COLUMN_SUFFIX } from '@/utils/ADempiere/dictionaryUtils'
 import { OPERATION_PATTERN } from '@/utils/ADempiere/formatValue/numberFormat.js'
+
+// Utils and Helper Methods
+import { convertBooleanToString, convertStringToBoolean } from '@/utils/ADempiere/formatValue/booleanFormat.js'
+import { removeQuotationMark } from '@/utils/ADempiere/formatValue/stringFormat'
+import { isIdentifierField } from '@/utils/ADempiere/references.js'
 
 /**
  * Checks if value is empty. Deep-checks arrays and objects
@@ -37,9 +55,12 @@ export const isEmptyValue = function(value) {
   if (String(value).trim() === '-1') {
     return true
   }
+  if (String(value) === '0001-01-01T00:00:00Z') {
+    return true
+  }
 
   let isEmpty = false
-  const typeOfValue = typeValue(value)
+  const typeOfValue = getTypeOfValue(value)
 
   switch (typeOfValue) {
     case 'UNDEFINED':
@@ -89,6 +110,52 @@ export const isEmptyValue = function(value) {
 }
 
 /**
+ * Is identifier empty value
+ * @param {string} columnName
+ * @param {mixed} value
+ * @returns {boolean}
+ */
+export function isIdentifierEmpty({
+  columnName,
+  value
+}) {
+  if (isEmptyValue(value)) {
+    return true
+  }
+  if (isEmptyValue(columnName)) {
+    throw new Error('Fill Mandatory ColumnName')
+  }
+  columnName = columnName.replace(/\$|#/g, '')
+
+  const isSpecialZeroUpdate = SPECIAL_ZERO_ID_TABLES.some(tableName => {
+    return columnName.startsWith(tableName)
+  })
+  if (isSpecialZeroUpdate && String(value) >= 0) {
+    return false
+  }
+
+  if (!columnName.startsWith(DISPLAY_COLUMN_PREFIX) &&
+    (columnName.endsWith(IDENTIFIER_COLUMN_SUFFIX) ||
+    columnName.endsWith('_ID_To')) &&
+    String(value).trim() === '0') {
+    return true
+  }
+
+  return false
+}
+
+/**
+ * It is the same value for both
+ * @param {mixed} valueA
+ * @param {mixed} valueB
+ * @returns {boolean} if valueA equal to valueB
+ */
+export function isSameValues(valueA, valueB) {
+  return valueA === valueB ||
+    (isEmptyValue(valueA) && isEmptyValue(valueB))
+}
+
+/**
  * Evaluates the type of data sent, useful with 'array' type data as the typeof
  * function returns 'object' in this and other cases.
  * @author EdwinBetanc0urt <EdwinBetanc0urt@oulook.com>
@@ -96,7 +163,8 @@ export const isEmptyValue = function(value) {
  * @param {boolean|array|object|number|string|date|map|set|function} value
  * @returns {string} value type in capital letters (STRING, NUMBER, BOOLEAN, ...)
  */
-export function typeValue(value) {
+export function getTypeOfValue(value) {
+  // '[object typeValue]'
   const typeOfValue = Object.prototype
     .toString
     .call(value)
@@ -167,28 +235,6 @@ export function zeroPad(number, pad = 2) {
   return Array(+(zero > 0 && zero)).join('0') + number
 }
 
-// /**
-//  * Get date and time from client in a object value
-//  * @param {string} type Type value of return
-//  * @returns {object|string}
-//  */
-// export function clientDateTime(date = null, type = '') {
-//   if (date == null || date === undefined || (typeof date === 'string' && date.trim() === '')) {
-//     // instance the objet Data with current date from client
-//     date = new Date()
-//   } else {
-//     // instance the objet Data with date or time send
-//     date = new Date(date)
-//   }
-
-//   const onlyToken = extractPagingToken(token)
-//   if (isEmptyValue(onlyToken)) {
-//     return ''
-//   }
-
-//   return onlyToken + '-' + pageNumber
-// }
-
 export function convertFieldsListToShareLink(fieldsList) {
   let attributesListLink = ''
   fieldsList.map(fieldItem => {
@@ -203,7 +249,7 @@ export function convertFieldsListToShareLink(fieldsList) {
       attributesListLink += `${fieldItem.columnName}=${encodeURIComponent(value)}&`
     }
 
-    if (fieldItem.isRange && !isEmptyValue(valueTo)) {
+    if (fieldItem.is_range && !isEmptyValue(valueTo)) {
       if (['FieldDate', 'FieldTime'].includes(fieldItem.componentPath) || typeof value === 'object') {
         valueTo = valueTo.getTime()
       }
@@ -295,7 +341,6 @@ export const recursiveTreeSearch = ({
  * @param {string} componentPath
  * @param {number} displayType, reference in ADempiere
  * @param {boolean} isMandatory, field is mandatory
- * @param {boolean} isIdentifier, field is ID
  */
 export function parsedValueComponent({
   componentPath,
@@ -304,6 +349,11 @@ export function parsedValueComponent({
   displayType,
   isMandatory = false
 }) {
+  // types `decimal` and `date` is a object struct
+  if ((getTypeOfValue(value) === 'OBJECT') && !isEmptyValue(value.type)) {
+    value = value.value
+  }
+
   const isEmpty = isEmptyValue(value)
   if (isEmpty && !isMandatory) {
     if (componentPath === 'FieldYesNo') {
@@ -320,9 +370,13 @@ export function parsedValueComponent({
       if (isEmpty) {
         returnValue = undefined
         if (isMandatory) {
-          returnValue = 0
+          if (isIdentifierField(displayType)) {
+            returnValue = -1
+          } else {
+            returnValue = 0
+          }
         }
-      } else if (typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, 'query')) {
+      } else if (value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, 'query')) {
         returnValue = value
       } else {
         if (Array.isArray(value) && value.length) {
@@ -335,7 +389,7 @@ export function parsedValueComponent({
 
     // data type Boolean
     case 'FieldYesNo':
-      if (typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, 'query')) {
+      if (value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, 'query')) {
         returnValue = value
       }
       returnValue = convertStringToBoolean(value)
@@ -346,10 +400,10 @@ export function parsedValueComponent({
     case 'FieldText':
     case 'FieldUrl':
     case 'FieldTextArea':
-      if (typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, 'query')) {
+      if (value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, 'query')) {
         returnValue = value
       }
-      returnValue = value ? String(value) : undefined
+      returnValue = !isEmptyValue(value) ? String(value) : undefined
       break
 
     // data type Date
@@ -364,12 +418,17 @@ export function parsedValueComponent({
       if (typeof value === 'number' || typeof value === 'string') {
         value = new Date(value)
       }
-      if (typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, 'query')) {
+      if (value && typeof value === 'object' && Object.prototype.hasOwnProperty.call(value, 'query')) {
         returnValue = value
       }
       returnValue = value
       break
 
+    case 'FieldAccount':
+    case 'FieldImage':
+    case 'FieldLocationAddress':
+    case 'FieldProductAttribute':
+    case 'FieldSearch':
     case 'FieldSelect':
       if (isEmpty) {
         value = undefined
@@ -377,11 +436,25 @@ export function parsedValueComponent({
       if (typeof value === 'boolean') {
         value = convertBooleanToString(value)
       }
-      // Table (18) or Table Direct (19)
-      if (TABLE_DIRECT.id === displayType || TABLE.id === displayType && columnName.includes('_ID')) {
-        if (!isEmptyValue(value)) {
+      if (!isEmptyValue(value)) {
+        // Table (18) or Table Direct (19)
+        if (
+          [TABLE_DIRECT.id, IMAGE.id, ACCOUNT_ELEMENT.id,
+            LOCATOR_WAREHOUSE.id, PRODUCT_ATTRIBUTE.id, RESOURCE_ASSIGNMENT.id
+          ].includes(displayType)
+        ) {
+          value = Number(value)
+        } else if (
+          ([TABLE.id, SEARCH.id].includes(displayType)) &&
+          (columnName.endsWith('_ID') || columnName.endsWith('_ID_To') ||
+          columnName === 'AD_Key' || columnName === 'AD_Display' ||
+          columnName.endsWith('atedBy') || columnName.endsWith('_Acct'))
+        ) {
           value = Number(value)
         }
+      }
+      if (LIST.id === displayType) {
+        value = removeQuotationMark(value)
       }
       // Search or List
       returnValue = value
@@ -525,7 +598,7 @@ export function tableColumnDataType(column, currentOption) {
   if (currentOption === language.t('table.dataTable.showOnlyMandatoryColumns') && (column.isMandatory || column.isMandatoryFromLogic)) {
     return true
   }
-  if (currentOption === language.t('table.dataTable.showTableColumnsOnly') && column.isDisplayedGrid) {
+  if (currentOption === language.t('table.dataTable.showTableColumnsOnly') && column.is_displayed_grid) {
     return true
   }
   if (currentOption === language.t('table.dataTable.showMinimalistView') &&
@@ -534,54 +607,6 @@ export function tableColumnDataType(column, currentOption) {
   }
   return false
 }
-
-// export function convertValuesToSendListOrders(values) {
-//   const valuesToSend = {}
-
-//   values.forEach(element => {
-//     const { value, columnName } = element
-//     if (isEmptyValue(value) || (typeof value === 'boolean' && !value)) {
-//       return
-//     }
-
-//     switch (columnName) {
-//       case 'DocumentNo':
-//         valuesToSend['documentNo'] = value
-//         break
-//       case 'C_BPartner_ID_UUID':
-//         valuesToSend['businessPartnerUuid'] = value
-//         break
-//       case 'GrandTotal':
-//         valuesToSend['grandTotal'] = value
-//         break
-//       case 'OpenAmt':
-//         valuesToSend['openAmount'] = value
-//         break
-//       case 'IsPaid':
-//         valuesToSend['isPaid'] = value
-//         break
-//       case 'Processed':
-//         valuesToSend['isProcessed'] = value
-//         break
-//       case 'IsAisleSeller':
-//         valuesToSend['isAisleSeller'] = value
-//         break
-//       case 'IsInvoiced':
-//         valuesToSend['isInvoiced'] = value
-//         break
-//       case 'DateOrderedFrom':
-//         valuesToSend['dateOrderedFrom'] = value
-//         break
-//       case 'DateOrderedTo':
-//         valuesToSend['dateOrderedTo'] = value
-//         break
-//       case 'SalesRep_ID_UUID':
-//         valuesToSend['salesRepresentativeUuid'] = value
-//         break
-//     }
-//   })
-//   return valuesToSend
-// }
 
 /**
  * Search in the currency lists for the current currency
@@ -695,13 +720,335 @@ export function convertValuesToSend(values) {
   return valuesToSend
 }
 
-export function getSource({ resourceUuid, resourceName, resourceType }) {
-  const image = getResoursePath({
-    resourceUuid,
-    resourceName
-  })
-  if (isEmptyValue(image)) {
-    return require('@/image/ADempiere/priceChecking/no-image.jpg')
+/**
+ * Set Icons to (SVG) based on Table Name
+ * @param {string} tableName
+ * @return {object} { class , type }
+ */
+export function setIconsTableName({
+  tableName
+}) {
+  let icon = {
+    type: 'svg',
+    class: 'search'
   }
-  return image
+  if (isEmptyValue(tableName)) {
+    return icon
+  }
+  switch (tableName) {
+    case 'HR_Process':
+      icon = {
+        type: 'svg',
+        class: 'peoples'
+      }
+      break
+    case 'C_Payment':
+    case 'I_Payment':
+      icon = {
+        type: 'svg',
+        class: 'payments'
+      }
+      break
+    case 'C_Invoice':
+    case 'I_Invoice':
+      icon = {
+        type: 'i',
+        class: 'el-icon-office-building'
+      }
+      break
+    case 'I_BankStatement':
+      icon = {
+        type: 'svg',
+        class: 'account-balance'
+      }
+      break
+    case 'M_InOut':
+    case 'I_InOutLineConfirm':
+      icon = {
+        type: 'svg',
+        class: 'local-shipping'
+      }
+      break
+    case 'I_Inventory':
+      icon = {
+        type: 'svg',
+        class: 'inventory'
+      }
+      break
+    case 'C_Order':
+    case 'I_Order':
+      icon = {
+        type: 'svg',
+        class: 'clipboard'
+      }
+      break
+    case 'I_Conversion_Rate':
+      icon = {
+        type: 'svg',
+        class: 'conversion'
+      }
+      break
+    case 'I_Product':
+    case 'M_Product':
+      icon = {
+        type: 'svg',
+        class: 'product'
+      }
+      break
+    case 'C_BPartner':
+    case 'I_BPartner':
+      icon = {
+        type: 'i',
+        class: 'el-icon-user-solid'
+      }
+      break
+    case 'I_ElementValue':
+      icon = {
+        type: 'i',
+        class: 'el-icon-wallet'
+      }
+      break
+    case 'I_ReportLine':
+      icon = {
+        type: 'i',
+        class: 'el-icon-notebook-2'
+      }
+      break
+    case 'I_GLJournal':
+      icon = {
+        type: 'svg',
+        class: 'balance'
+      }
+      break
+    case 'I_FAJournal':
+      icon = {
+        type: 'svg',
+        class: 'accounting-note'
+      }
+      break
+    case 'I_Asset':
+      icon = {
+        type: 'i',
+        class: 'el-icon-coin'
+      }
+      break
+    case 'I_Movement':
+      icon = {
+        type: 'i',
+        class: 'el-icon-truck'
+      }
+      break
+    case 'I_ProductPlanning':
+      icon = {
+        type: 'svg',
+        class: 'product'
+      }
+      break
+    case 'I_PriceList':
+      icon = {
+        type: 'svg',
+        class: 'price_list'
+      }
+      break
+    case 'I_HR_Movement':
+      icon = {
+        type: 'svg',
+        class: 'import-movement'
+      }
+      break
+    case 'I_Product_BOM':
+      icon = {
+        type: 'svg',
+        class: 'product'
+      }
+      break
+    case 'I_FixedAsset':
+      icon = {
+        type: 'i',
+        class: 'el-icon-coin'
+      }
+      break
+    case 'I_HR_Attribute':
+      icon = {
+        type: 'svg',
+        class: 'atributo'
+      }
+      break
+    case 'I_Product_ASI':
+      icon = {
+        type: 'svg',
+        class: 'product-attribute'
+      }
+      break
+    case 'I_Workflow':
+      icon = {
+        type: 'svg',
+        class: 'workflow'
+      }
+      break
+    case 'I_SalesHistory':
+      icon = {
+        type: 'i',
+        class: 'el-icon-shopping-cart-full'
+      }
+      break
+    case 'I_Budget':
+      icon = {
+        type: 'svg',
+        class: 'budget'
+      }
+      break
+    case 'I_HR_Employee':
+      icon = {
+        type: 'svg',
+        class: 'employee'
+      }
+      break
+    case 'C_Project':
+    case 'I_Project':
+      icon = {
+        type: 'svg',
+        class: 'project'
+      }
+      break
+    case 'I_Forecast':
+      icon = {
+        type: 'svg',
+        class: 'forecast'
+      }
+      break
+    case 'I_HR_AttendanceRecord':
+      icon = {
+        type: 'svg',
+        class: 'attendance-record'
+      }
+      break
+    case 'I_FM_Agreement':
+      icon = {
+        type: 'svg',
+        class: 'agreement'
+      }
+      break
+    case 'I_Request':
+    case 'R_Request':
+      icon = {
+        type: 'svg',
+        class: 'guide'
+      }
+      break
+  }
+  return icon
+}
+
+/**
+ * Get Valid Integer
+ * @param {string|number} value
+ * @param {boolean} is_identifier
+ * @returns {number}
+ */
+export function getValidInteger(value, is_identifier = false) {
+  if (!isEmptyValue(value) && !Number.isNaN(value)) {
+    return Number.parseInt(value, 10)
+  }
+  if (is_identifier) {
+    return -1
+  }
+  return 0
+}
+
+/**
+ * Assign record id in WIndows to path
+ * @param {string} tab
+ * @param {number} recordId
+ * @param {string} tabChild
+ * @param {number} recordChildId
+ */
+export function setRecordPath({
+  tab,
+  action,
+  recordId,
+  tabChild,
+  recordChildId
+}) {
+  const currentRoute = router.app._route
+  const { query } = currentRoute
+  router.replace({
+    query: {
+      ...query,
+      tab,
+      action,
+      recordId,
+      tabChild,
+      recordChildId
+    }
+  })
+}
+
+/**
+ * Get Operator And Value in String
+ * @param {array} fieldsList
+ * @param {string} format
+ * @return {string} ej: '{ "name":"columnName","operator":"equal","values": value}' || '[{ "name":"columnName","operator":"equal","values": value}]'
+ */
+export function getOperatorAndValue({
+  format = 'object',
+  containerUuid,
+  fieldsList
+}) {
+  const attributesObject = {}
+  const attributesArray = []
+  if (isEmptyValue(fieldsList)) {
+    return format === 'object' ? JSON.stringify(attributesObject) : JSON.stringify(attributesArray)
+  }
+
+  fieldsList.forEach(field => {
+    // default operator
+    const { columnName, columnNameTo, operator, valueType, display_type } = field
+
+    let value, valueTo, values
+
+    const contextValue = store.getters.getValueOfFieldOnContainer({
+      containerUuid: containerUuid,
+      columnName: columnName
+    })
+
+    if (!IGNORE_VALUE_OPERATORS_LIST.includes(operator)) {
+      if (isEmptyValue(contextValue)) {
+        return
+      }
+      if (FIELDS_DATE.includes(display_type)) {
+        if (MULTIPLE_VALUES_OPERATORS_LIST.includes(operator)) {
+          values = contextValue
+        } else if (RANGE_VALUE_OPERATORS_LIST.includes(operator)) {
+          [value, valueTo] = Array.isArray(contextValue) ? contextValue : [contextValue, store.getters.getValueOfFieldOnContainer({
+            containerUuid: containerUuid,
+            columnName: columnNameTo
+          })]
+          values = [value, valueTo]
+        } else {
+          value = contextValue
+        }
+      } else {
+        value = contextValue
+      }
+    }
+
+    attributesArray.push({
+      name: columnName,
+      operator: operator,
+      values: !isEmptyValue(values) ? values : value
+    })
+
+    attributesObject[columnName] = {
+      ...attributesObject[columnName] || {},
+      columnName,
+      operator,
+      value,
+      valueTo,
+      values,
+      valueType
+    }
+  })
+
+  return format === 'object' ? JSON.stringify(attributesObject) : JSON.stringify(attributesArray)
 }

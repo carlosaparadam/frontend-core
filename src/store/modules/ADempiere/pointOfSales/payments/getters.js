@@ -34,9 +34,9 @@ export default {
   getDivideRateCollection: (state) => {
     return state.divideRateCollection
   },
-  getListPayments: (state) => {
-    return state.listPayments
-  },
+  // getListPayments: (state) => {
+  //   return state.listPayments
+  // },
   getListCurrency: (state) => {
     return state.currency
   },
@@ -72,6 +72,12 @@ export default {
   },
   getListCashSummary: (state) => {
     return state.listCashSummary
+  },
+  getListCashSummaryMovements: (state) => {
+    return state.listCashSummaryMovements
+  },
+  getIsShowCashSummaryMovements: (state) => {
+    return state.isShowCashSummaryMovements
   },
   getCurrentCustomerBankAccount: (state) => {
     return state.currentCustomerBankAccount

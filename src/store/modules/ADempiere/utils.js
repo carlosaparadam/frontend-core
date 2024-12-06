@@ -13,12 +13,10 @@ const initStateUtils = {
   isContainerInfo: false,
   documentAction: [],
   splitWidthRight: 3,
-  splitWidthLeft: 3,
+  splitWidthLeft: 2,
   parametersProcessPos: [],
   updateOrder: false,
   updatePayment: false,
-  createBusinessPartner: false,
-  listBusinessPartner: false,
   copyShippingAddress: true,
   step: 0,
   updateCustomer: false,
@@ -28,8 +26,8 @@ const initStateUtils = {
   searchCompleteOrders: false,
   searchToDeliveOrders: false,
   isNewOrder: false,
-  showProductList: false,
   confirmDelivery: false,
+  deliverAllProducts: false,
   showConfirmDelivery: false,
   showFastConfirmDelivery: false,
   showAddNewAddress: false,
@@ -104,12 +102,6 @@ export default {
     setStepCurrent(state, step) {
       state.step = step
     },
-    popoverCreateBusinessPartner(state, createBusinessPartner) {
-      state.createBusinessPartner = createBusinessPartner
-    },
-    popoverListBusinessPartner(state, payload) {
-      state.listBusinessPartner = payload
-    },
     popoverOverdrawnInvoice(state, payload) {
       state.overdrawnInvoice = payload
     },
@@ -128,8 +120,8 @@ export default {
     setCopyShippingAddress(state, payload) {
       state.copyShippingAddress = payload
     },
-    setShowProductList(state, payload) {
-      state.showProductList = payload
+    setDeliverAllProducts(state, payload) {
+      state.deliverAllProducts = payload
     },
     setConfirmDelivery(state, payload) {
       state.confirmDelivery = payload
@@ -154,6 +146,9 @@ export default {
     },
     setShowCashSummaryMovements(state, payload) {
       state.showCashSummaryMovements = payload
+    },
+    setShowCashClosedSummaryMovements(state, payload) {
+      state.isShowCashSummaryMovements = payload
     },
     setShowAssignSeller(state, payload) {
       state.showAssignSeller = payload
@@ -226,12 +221,6 @@ export default {
     },
     updatePaymentPos({ commit }, params) {
       commit('setUpdatePayment', params)
-    },
-    changePopover({ commit }, params) {
-      commit('popoverCreateBusinessPartner', params)
-    },
-    changePopoverListBusinessPartner({ commit }, params) {
-      commit('popoverListBusinessPartner', params)
     },
     changeShowAddNewAddress({ commit }, params) {
       commit('setShowAddNewAddress', params)
@@ -316,12 +305,6 @@ export default {
     getUpdatePaymentPos: (state) => {
       return state.updatePayment
     },
-    getPopoverCreateBusinessParnet: (state) => {
-      return state.createBusinessPartner
-    },
-    getPopoverListBusinessParnet: (state) => {
-      return state.listBusinessPartner
-    },
     getCopyShippingAddress: (state) => {
       return state.copyShippingAddress
     },
@@ -337,8 +320,8 @@ export default {
     getFocusNewOrder: (state) => {
       return state.isNewOrder
     },
-    getShowProductList: (state) => {
-      return state.showProductList
+    getDeliverAllProducts: (state) => {
+      return state.deliverAllProducts
     },
     getConfirmDelivery: (state) => {
       return state.confirmDelivery

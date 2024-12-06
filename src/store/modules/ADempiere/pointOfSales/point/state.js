@@ -44,5 +44,17 @@ export default {
   currentPointOfSales: {},
   showPOSOptions: false,
   showPOSKeyLayout: false,
-  showPOSCollection: false
+  showPOSCollection: false,
+  isLoadingProcess: false,
+  isLoadingCashOpen: false,
+  isLoadingCashWithdrawal: false,
+  isLoadingCashClosing: false,
+  isShowSummaryCashOpen: false,
+  summaryCashOpen: {},
+  isShowSummaryCashClose: false,
+  summaryCashClose: {},
+  isShowSummaryReverseOrder: false,
+  summaryReverseOrder: {},
+  isShowConfirmDelivery: false,
+  summaryConfirmDelivery: {}
 }

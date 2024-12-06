@@ -26,6 +26,24 @@ const dateTimeFormats = {
       minute: '2-digit',
       second: '2-digit',
       hour12: false
+    },
+    short: {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    },
+    onlyDate: {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    },
+    onlyDateLatin: {
+      year: 'numeric',
+      month: 'long',
+      day: '2-digit'
     }
   },
   'es': {
@@ -38,6 +56,24 @@ const dateTimeFormats = {
       minute: '2-digit',
       second: '2-digit',
       hour12: true
+    },
+    short: {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    },
+    onlyDate: {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    },
+    onlyDateLatin: {
+      year: 'numeric',
+      month: 'long',
+      day: '2-digit'
     }
   }
 }

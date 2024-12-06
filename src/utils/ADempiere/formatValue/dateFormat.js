@@ -1,24 +1,27 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Yamel Senih ysenih@erpya.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+import lang from '@/lang'
 import store from '@/store'
 import moment from 'moment'
 
 // utils and helper methods
-import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
+import { isEmptyValue, getTypeOfValue } from '@/utils/ADempiere/valueUtils.js'
 import { zeroPad } from '@/utils/ADempiere/formatValue/numberFormat.js'
 
 /**
@@ -62,7 +65,8 @@ export function convertDateFormat(dateFormat) {
  */
 export function getDateFormat({
   format,
-  isTime
+  isTime,
+  isDate
 }) {
   if (format) {
     return format
@@ -70,6 +74,9 @@ export function getDateFormat({
   //  Else
   const languageDefinition = store.getters['getCurrentLanguageDefinition']
   if (languageDefinition) {
+    if (isDate && isTime) {
+      return languageDefinition.datePattern + languageDefinition.timePattern
+    }
     return isTime ? languageDefinition.timePattern : languageDefinition.datePattern
   }
 }
@@ -89,14 +96,27 @@ export function getDefaultFormat(isTime) {
  * @param {string|date} object
  * @param {boolean} isTime
  */
-export function formatDate(date, isTime = false) {
+export function formatDate({ value, isTime = false, isDate = false, format }) {
+  if (isEmptyValue(value)) {
+    return undefined
+  }
+  if (getTypeOfValue(value) === 'DATE') {
+    value = value.getTime()
+  }
+  const formatMoment = getDateFormat({
+    format,
+    isTime,
+    isDate
+  })
+
+  return moment.utc(value).format(formatMoment)
+}
+
+export function dateTimeFormats(date, format) {
   if (isEmptyValue(date)) {
     return undefined
   }
-  //  Format
-  return moment.utc(date).format(getDateFormat({
-    isTime
-  }))
+  return moment(date).format(format)
 }
 
 /**
@@ -148,4 +168,106 @@ export function formatDateToSend(date) {
     return undefined
   }
   return date.slice(0, 10)
+}
+
+/**
+ * Get valid Date object
+ * @param {number|string} value
+ */
+export function getValidDate(value) {
+  let date = value
+  if (isEmptyValue(date)) {
+    date = new Date()
+  } else if (typeof value === 'string') {
+    // TODO: Verify it time zone
+    // if (value.length <= 10) {
+    //   value += 'T00:00:00' // without time zone
+    // }
+    date = new Date(value)
+  } else if (typeof value === 'number') {
+    date = new Date(value)
+  }
+  return date
+}
+
+/**
+ * Translate date value
+ * @param {number} value
+ * @param {string} format (short,onlyDate,long )
+ * @returns {string}
+ */
+export function translateDate({ value, format = 'short' }) {
+  const date = getValidDate(value)
+
+  const language = store.getters.language
+  const translatedDate = lang.d(date, format, language)
+  return translatedDate
+}
+
+/**
+ * Translate date by long value
+ * @deprecated use {@link #translateDate} instead
+ * @param {number} value
+ * @returns {string}
+ */
+export function translateDateByLong(value) {
+  return translateDate({
+    value: new Date(value),
+    format: 'long'
+  })
+}
+
+/**
+ * Get web browser time zone
+ * @returns {string}
+ */
+export function getBrowserTimeZone() {
+  const dateFormat = new Intl.DateTimeFormat('default', {})
+  const usedOptions = dateFormat.resolvedOptions()
+  return usedOptions.timeZone
+}
+
+/**
+ * Or get a Date object with the specified Time zone
+ * @param {date|string|number} value of date
+ * @param {string} timeZone
+ * @returns {date}
+ */
+export function changeTimeZone({
+  value,
+  timeZone
+}) {
+  if (isEmptyValue(timeZone)) {
+    timeZone = getBrowserTimeZone()
+  }
+  const date = getValidDate(value)
+
+  return new Date(
+    date.toLocaleString('en-US', {
+      timeZone
+    })
+  )
+}
+
+/**
+ * Format date to time with hours, minutes, and seconds
+ * @param {date|string|number} value
+ * @param {string} timeZone
+ * @returns {string} hh:mm:ss a (01:35:08 pm)
+ */
+export function timeFormat({
+  value,
+  timeZone
+}) {
+  if (isEmptyValue(timeZone)) {
+    timeZone = getBrowserTimeZone()
+  }
+  const date = getValidDate(value)
+
+  return date.toLocaleString('en-US', {
+    timeZone,
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
 }

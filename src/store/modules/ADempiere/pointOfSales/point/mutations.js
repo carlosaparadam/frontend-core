@@ -5,7 +5,6 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-
 // This program is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -18,6 +17,8 @@
  * Pos Mutations
  * All related to global store of Point of Sales
  */
+import { isEmptyValue } from '@/utils/ADempiere'
+
 export default {
   setPointOfSalesList(state, pointOfSalesList) {
     state.pointOfSalesList = pointOfSalesList
@@ -56,7 +57,18 @@ export default {
     state.tenderChange = tenderChange
   },
   addConversionToList(state, conversion) {
-    state.conversionsList.push(conversion)
+    const search = state.conversionsList.find(currency => currency.id === conversion.id && currency.validFrom === conversion.validFrom)
+    if (!isEmptyValue(search)) {
+      state.conversionsList.map(list => {
+        if (list) {
+          return {
+            ...search
+          }
+        }
+      })
+    } else {
+      state.conversionsList.push(conversion)
+    }
   },
   setCurrentPointOfSales(state, currentPointOfSales) {
     state.currentPointOfSales = currentPointOfSales
@@ -69,5 +81,41 @@ export default {
   },
   setShowPOSCollection(state, isShowedCollection) {
     state.showPOSCollection = isShowedCollection
+  },
+  setProcessLoading(state, loading) {
+    state.isLoadingProcess = loading
+  },
+  setShowSummaryCashOpen(state, show) {
+    state.isShowSummaryCashOpen = show
+  },
+  setSummaryCashOpen(state, attribute) {
+    state.summaryCashOpen = attribute
+  },
+  setShowSummaryCashClose(state, show) {
+    state.isShowSummaryCashClose = show
+  },
+  setSummaryCashClose(state, attribute) {
+    state.summaryCashClose = attribute
+  },
+  setLoadingCashOpen(state, loading) {
+    state.isLoadingCashOpen = loading
+  },
+  setLoadingCashWithdrawal(state, loading) {
+    state.isLoadingCashWithdrawal = loading
+  },
+  setLoadingCashClosing(state, loading) {
+    state.isLoadingCashClosing = loading
+  },
+  setShowSummaryReverseOrder(state, show) {
+    state.isShowSummaryReverseOrder = show
+  },
+  setSummaryReverseOrder(state, order) {
+    state.summaryReverseOrder = order
+  },
+  setShowConfirmDelivery(state, show) {
+    state.isShowConfirmDelivery = show
+  },
+  setSummaryConfirmDelivery(state, summary) {
+    state.summaryConfirmDelivery = summary
   }
 }

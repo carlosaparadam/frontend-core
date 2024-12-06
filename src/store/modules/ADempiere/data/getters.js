@@ -1,4 +1,25 @@
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
+// Constants
+import { DISPLAY_COLUMN_PREFIX } from '@/utils/ADempiere/dictionaryUtils'
+
+// Utils and Helper Methods
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 
 const getters = {
@@ -34,7 +55,7 @@ const getters = {
    * @param {array}  selection
    * [{
    *    selectionId: keyColumn Value,
-   *    selectionValues: [{ columnName, value }]
+   *    values: [{ columnName, value }]
    * }]
    */
   getSelectionToServer: (state, getters, rootState, rootGetters) => ({
@@ -56,7 +77,7 @@ const getters = {
     // reduce list
     const fieldsListSelection = fieldsList
       .filter(itemField => {
-        return itemField.isIdentifier || itemField.isUpdateable
+        return itemField.is_identifier || itemField.is_updateable
       })
       .map(itemField => {
         return itemField.columnName
@@ -66,7 +87,7 @@ const getters = {
       const records = []
 
       Object.keys(itemRow).forEach(key => {
-        if (!key.includes('DisplayColumn') && !withOut.includes(key)) {
+        if (!key.startsWith(DISPLAY_COLUMN_PREFIX) && !withOut.includes(key)) {
           // evaluate metadata attributes before to convert
           if (fieldsListSelection.includes(key)) {
             records.push({
@@ -79,18 +100,11 @@ const getters = {
 
       selectionToServer.push({
         selectionId: itemRow[keyColumn],
-        selectionValues: records
+        values: records
       })
     })
 
     return selectionToServer
-  },
-  getContextInfoField: (state) => (contextInfoUuid, sqlStatement) => {
-    return state.contextInfoField.find(info => {
-      if ((info.contextInfoUuid === contextInfoUuid) && (info.sqlStatement === sqlStatement)) {
-        return info
-      }
-    })
   }
 
 }

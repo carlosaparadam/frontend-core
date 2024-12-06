@@ -1,41 +1,74 @@
-import {
-  login,
-  logout,
-  requestUserInfoFromSession,
-  requestSessionInfo
-} from '@/api/user'
-import {
-  requestRolesList,
-  requestChangeRole
-} from '@/api/role.js'
-import {
-  getToken,
-  setToken,
-  removeToken,
-  getCurrentRole,
-  setCurrentRole,
-  removeCurrentRole,
-  getCurrentOrganization,
-  setCurrentOrganization,
-  getCurrentWarehouse,
-  setCurrentWarehouse,
-  removeCurrentWarehouse,
-  removeCurrentOrganization
-} from '@/utils/auth'
-import {
-  requestOrganizationsList,
-  requestWarehousesList
-} from '@/api/ADempiere/system-core'
-import { resetRouter } from '@/router'
-import { showMessage } from '@/utils/ADempiere/notification'
-import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
-import { ORGANIZATION, WAREHOUSE } from '@/utils/ADempiere/constants/systemColumns'
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 import language from '@/lang'
+
+// Constants
+import { CLIENT, ORGANIZATION, CURRENCY, UOM, WAREHOUSE } from '@/utils/ADempiere/constants/systemColumns'
+import { title } from '@/settings'
+import { config } from '@/utils/ADempiere/config'
+import { ACCOUNTING_CONTEXT_PREFIX, GLOBAL_CONTEXT_PREFIX } from '@/utils/ADempiere/contextUtils'
+
+// API Request Methods
+import {
+  requestUserActivity
+} from '@/api/ADempiere/logs/index.ts'
+import {
+  requestLogin,
+  requestLogout,
+  requestRolesList,
+  requestChangeRole,
+  organizationsListRequest,
+  warehousesListRequest,
+  requestSessionInfo,
+  loginAuthentication,
+  setSessionAttribute,
+  requestUserInfoFromSession
+} from '@/api/ADempiere/security/index.ts'
+import {
+  systemInfo,
+  systemInfoDictionary,
+  systemInfoS3,
+  systemInfoReportEngine
+} from '@/api/ADempiere/common/index.ts'
+import { getCurrencyPrecision, getUnitOfMeasure } from '@/api/ADempiere/system-core.js'
+
+// Utils and Helper Methods
+import { resetRouter } from '@/router'
+import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
+import { showMessage } from '@/utils/ADempiere/notification'
+import { pathImageWindows } from '@/utils/ADempiere/resource'
+import { camelizeObjectKeys } from '@/utils/ADempiere/transformObject.js'
+import { convertObjectToKeyValue } from '@/utils/ADempiere/valueFormat.js'
+import {
+  getToken, setToken, removeToken,
+  setCurrentClient,
+  getCurrentRole, setCurrentRole, removeCurrentRole,
+  getCurrentOrganization, setCurrentOrganization, removeCurrentOrganization,
+  getCurrentWarehouse, setCurrentWarehouse, removeCurrentWarehouse
+} from '@/utils/auth'
+// Constants
+import { COLUMN_NAME, TABLE_NAME_CLIENT, TABLE_NAME_USER } from '@/utils/ADempiere/constants/resoucer.ts'
 
 const state = {
   token: getToken(),
   name: '',
-  userUuid: '',
+  userId: -1,
   avatar: '',
   introduction: '',
   role: {}, // info current role
@@ -49,7 +82,16 @@ const state = {
   warehouse: {},
   isSession: false,
   sessionInfo: {},
-  corporateBrandingImage: ''
+  corporateBrandingImage: '',
+  activityLogs: [],
+  systemInfo: {},
+  dictionary: {},
+  s3Version: {},
+  precisionContext: {},
+  precisionUOMContext: {},
+  reportEngineVersion: {},
+  logoUrl: 'https://avatars1.githubusercontent.com/u/1263359?s=200&v=4',
+  userImageUrl: ''
 }
 
 const mutations = {
@@ -95,14 +137,41 @@ const mutations = {
   SET_USER: (state, payload) => {
     state.userInfo = payload
   },
-  SET_USER_UUID: (state, payload) => {
-    state.userUuid = payload
+  SET_USER_ID: (state, payload) => {
+    state.userId = payload
   },
   setIsSession(state, payload) {
     state.isSession = payload
   },
   setSessionInfo(state, payload) {
     state.sessionInfo = payload
+  },
+  setActivityLogs(state, logs) {
+    state.activityLogs = logs
+  },
+  setSystem(state, info) {
+    state.systemInfo = info
+  },
+  setSystemDictionary(state, info) {
+    state.dictionary = info
+  },
+  setSystemS3(state, info) {
+    state.s3Version = info
+  },
+  setSystemReportEngine(state, info) {
+    state.reportEngineVersion = info
+  },
+  setCurrencyPrecision(state, precision) {
+    state.precisionContext = precision
+  },
+  setUOMPrecision(state, precision) {
+    state.precisionUOMContext = precision
+  },
+  setLogo(state, url) {
+    state.logoUrl = url
+  },
+  setUserImage(state, url) {
+    state.userImageUrl = url
   }
 }
 
@@ -111,19 +180,22 @@ const actions = {
   login({ commit }, {
     userName,
     password,
-    roleUuid,
-    organizationUuid,
+    roleId,
+    organizationId,
+    warehouseId,
     token
   }) {
     return new Promise((resolve, reject) => {
-      login({
+      requestLogin({
         userName,
         password,
-        roleUuid,
-        organizationUuid,
+        roleId,
+        organizationId,
+        warehouseId,
         token
       })
-        .then(token => {
+        .then(response => {
+          const { token } = response
           commit('SET_TOKEN', token)
           setToken(token)
           resolve()
@@ -134,74 +206,108 @@ const actions = {
     })
   },
 
+  loginOpenId({ commit }, {
+    code,
+    state
+  }) {
+    return new Promise((resolve, reject) => {
+      loginAuthentication({
+        code,
+        state
+      })
+        .then(response => {
+          const { token } = response
+          commit('SET_TOKEN', token)
+          setToken(token)
+          resolve(token)
+        })
+        .catch(error => {
+          reject(error)
+        })
+    })
+  },
+
   /**
    * Get session info
-   * @param {string} sessionUuid as token
    */
-  getSessionInfo({ commit, dispatch }, sessionUuid = null) {
-    if (isEmptyValue(sessionUuid)) {
-      sessionUuid = getToken()
-    }
-
+  getSessionInfo({ commit, dispatch }) {
     return new Promise((resolve, reject) => {
-      requestSessionInfo(sessionUuid)
+      requestSessionInfo()
         .then(async sessionInfo => {
+          const {
+            id,
+            name,
+            userInfo,
+            processed,
+            defaultContext
+          } = sessionInfo
+          dispatch('system')
+          dispatch('systemDictionary')
+          dispatch('systemS3')
+          dispatch('systemReportEngine')
+          dispatch('currencyPrecision', {
+            id: defaultContext[ACCOUNTING_CONTEXT_PREFIX + CURRENCY]
+          })
+          dispatch('unitOfMeasurePrecision', {
+            id: defaultContext[GLOBAL_CONTEXT_PREFIX + UOM]
+          })
           commit('setIsSession', true)
           commit('setSessionInfo', {
-            id: sessionInfo.id,
-            uuid: sessionInfo.uuid,
-            name: sessionInfo.name,
-            processed: sessionInfo.processed
+            id,
+            name,
+            processed
           })
 
-          const { userInfo } = sessionInfo
-          commit('SET_NAME', sessionInfo.name)
-          commit('SET_INTRODUCTION', userInfo.description)
-          commit('SET_USER_UUID', userInfo.uuid)
+          commit('SET_NAME', name)
           commit('SET_USER', userInfo)
+          commit('SET_USER_ID', userInfo.id)
+
           const avatar = userInfo.image
-          commit('SET_AVATAR', avatar)
+          if (!isEmptyValue(avatar)) {
+            // 108=window User
+            // 11/client/window/108/ad_user/101/logo_id/2024-04-0811-55.png
+            const clientId = defaultContext[`#${CLIENT}`]
+            const newLogoPath = `${clientId}/client/window/108/ad_user/${userInfo.id}/logo_id/${userInfo.image}`
+            commit('SET_AVATAR', newLogoPath)
+          }
 
           // TODO: Check decimals Number as String '0.123'
           // set multiple context
           dispatch('setMultiplePreference', {
-            values: sessionInfo.defaultContext
+            values: defaultContext
           }, {
             root: true
           })
 
           const sessionResponse = {
             name: sessionInfo.name,
-            defaultContext: sessionInfo.defaultContext
+            defaultContext: defaultContext
           }
 
           const { role } = sessionInfo
           commit('SET_ROLE', role)
-          setCurrentRole(role.uuid)
-          const currentOrganizationSession = sessionInfo.defaultContext.find(context => {
-            if (context.key === `#${ORGANIZATION}`) {
-              return context
-            }
-          })
-          commit('SET_CURRENT_ORGANIZATION_ID', currentOrganizationSession.value)
+          setCurrentRole(role.id)
+          setCurrentClient(role.client.id)
+          // const currentOrganizationSession = defaultContext.find(context => {
+          //   return context.key === defaultContext[`#${ORGANIZATION}`]
+          // })
+          const sessionOrganizationId = defaultContext[`#${ORGANIZATION}`]
+          commit('SET_CURRENT_ORGANIZATION_ID', sessionOrganizationId)
+          setCurrentOrganization(sessionOrganizationId)
+
+          const sessionWarehouseId = defaultContext[`#${WAREHOUSE}`]
+          // commit('SET_WAREHOUSE', sessionWarehouseId)
+          setCurrentWarehouse(sessionWarehouseId)
 
           // wait to establish the client and organization to generate the menu
-          await dispatch('getOrganizationsListFromServer', role.uuid)
+          await dispatch('getOrganizationsListFromServer', {
+            roleId: role.id,
+            organizationId: sessionOrganizationId
+          })
 
           resolve(sessionResponse)
 
-          commit('setSystemDefinition', {
-            countryId: sessionInfo.countryId,
-            costingPrecision: sessionInfo.costingPrecision,
-            countryCode: sessionInfo.countryCode,
-            countryName: sessionInfo.countryName,
-            currencyIsoCode: sessionInfo.currencyIsoCode,
-            currencyName: sessionInfo.currencyName,
-            currencySymbol: sessionInfo.currencySymbol,
-            displaySequence: sessionInfo.displaySequence,
-            language: sessionInfo.language,
-            standardPrecision: sessionInfo.standardPrecision
-          }, {
+          commit('setSystemDefinition', sessionInfo, {
             root: true
           })
 
@@ -212,7 +318,13 @@ const actions = {
             root: true
           })
 
-          dispatch('getRolesListFromServer', sessionUuid)
+          dispatch('getRolesListFromServer')
+            .finally(() => {
+              dispatch('searchImageLogoOnServer')
+              dispatch('searchImageUserOnServer', {
+                userInfo
+              })
+            })
         })
         .catch(error => {
           console.warn(`Error ${error.code} getting context session: ${error.message}.`)
@@ -222,16 +334,51 @@ const actions = {
   },
 
   /**
-   * Get user info
-   * @param {string} sessionUuid as token
+   * Get Currency
    */
-  getUserInfoFromSession({ commit, dispatch }, sessionUuid = null) {
-    if (isEmptyValue(sessionUuid)) {
-      sessionUuid = getToken()
-    }
-
+  currencyPrecision({ commit }, {
+    id
+  }) {
     return new Promise((resolve, reject) => {
-      requestUserInfoFromSession(sessionUuid).then(responseGetInfo => {
+      getCurrencyPrecision({
+        id
+      })
+        .then(response => {
+          commit('setCurrencyPrecision', response)
+          resolve(response)
+        })
+        .catch(error => {
+          reject(error)
+        })
+    })
+  },
+
+  /**
+   * Get Unit Of Measure
+   */
+  unitOfMeasurePrecision({ commit }, {
+    id
+  }) {
+    return new Promise((resolve, reject) => {
+      getUnitOfMeasure({
+        id
+      })
+        .then(response => {
+          commit('setUOMPrecision', response)
+          resolve(response)
+        })
+        .catch(error => {
+          reject(error)
+        })
+    })
+  },
+
+  /**
+   * Get user info
+   */
+  getUserInfoFromSession({ commit, dispatch }) {
+    return new Promise((resolve, reject) => {
+      requestUserInfoFromSession().then(responseGetInfo => {
         if (isEmptyValue(responseGetInfo)) {
           reject({
             code: 0,
@@ -240,14 +387,14 @@ const actions = {
         }
         // if (isEmptyValue(state.role)) {
         //   const role = responseGetInfo.rolesList.find(itemRole => {
-        //     return itemRole.uuid === getCurrentRole()
+        //     return itemRole.id === getCurrentRole()
         //   })
         //   if (!isEmptyValue(role)) {
         //     commit('SET_ROLE', role)
         //   }
         // }
 
-        dispatch('getRolesListFromServer', sessionUuid)
+        dispatch('getRolesListFromServer')
 
         const avatar = responseGetInfo.image
         commit('SET_AVATAR', avatar)
@@ -264,27 +411,31 @@ const actions = {
   },
 
   // user logout
-  logout({ commit, state, getters, rootState, dispatch }) {
-    const token = state.token
+  logout({ commit, rootState, dispatch }) {
     return new Promise((resolve, reject) => {
-      commit('SET_TOKEN', '')
-      commit('SET_ROLES', [])
-      removeToken()
-
       commit('setIsSession', false)
       rootState['pointOfSales/point/index'].showPOSCollection = false
       // reset visited views and cached views
       // to fixed https://github.com/PanJiaChen/vue-element-admin/issues/2485
       dispatch('tagsView/delAllViews', null, { root: true })
 
-      // clear sesion cookies
-      removeCurrentRole()
-      removeCurrentOrganization()
-      removeCurrentWarehouse()
-      resetRouter()
-      logout(token).catch(error => {
+      requestLogout().catch(error => {
         console.warn(error)
       }).finally(() => {
+        dispatch('resetStateBusinessData', null, {
+          root: true
+        })
+
+        // clear sesion cookies
+        removeCurrentRole()
+        removeCurrentOrganization()
+        removeCurrentWarehouse()
+        resetRouter()
+
+        commit('SET_TOKEN', '')
+        commit('SET_ROLES', [])
+        removeToken()
+
         resolve()
       })
     })
@@ -300,13 +451,9 @@ const actions = {
     })
   },
 
-  getRolesListFromServer({ commit }, sessionUuid = null) {
-    if (isEmptyValue(sessionUuid)) {
-      sessionUuid = getToken()
-    }
-
+  getRolesListFromServer({ commit }) {
     return new Promise((resolve, reject) => {
-      requestRolesList(sessionUuid)
+      requestRolesList()
         .then(rolesList => {
           // roles must be a non-empty array
           if (isEmptyValue(rolesList)) {
@@ -322,11 +469,11 @@ const actions = {
             const roleSession = getCurrentRole()
             if (!isEmptyValue(roleSession)) {
               role = rolesList.find(itemRole => {
-                return itemRole.uuid === roleSession
+                return itemRole.id === roleSession
               })
             }
             if (isEmptyValue(role)) {
-              role = rolesList[0]
+              role = rolesList.at(0)
             }
 
             if (!isEmptyValue(role)) {
@@ -348,52 +495,44 @@ const actions = {
 
   /**
    * Get list of organizations
-   * @param {string} roleUuid
+   * @param {number} roleId
+   * @param {number} organizationId
    * @returns
    */
-  getOrganizationsListFromServer({ commit, dispatch, getters }, roleUuid) {
-    if (isEmptyValue(roleUuid)) {
-      roleUuid = getCurrentRole()
+  getOrganizationsListFromServer({ commit, dispatch, getters }, {
+    roleId,
+    organizationId
+  }) {
+    if (isEmptyValue(roleId)) {
+      roleId = getCurrentRole()
+    }
+    if (isEmptyValue(organizationId)) {
+      organizationId = getters.getCurrentOrgId
     }
 
-    return requestOrganizationsList({ roleUuid })
+    return organizationsListRequest({ roleId })
       .then(response => {
-        commit('SET_ORGANIZATIONS_LIST', response.organizationsList)
-
-        // TODO: Change id from session context server
-        const currentOrganizationId = getters.getCurrentOrgId
-        // set organization with AD_Org_ID context
-        let organization = response.organizationsList.find(item => {
-          if (item.id === currentOrganizationId) {
-            return item
-          }
+        let organization = response.organizationsList.find(orgItem => {
+          return orgItem.id === organizationId
         })
-
-        // set organization with cookie uuid
-        if (!isEmptyValue(organization)) {
-          organization = response.organizationsList.find(item => {
-            if (item.uuid === getCurrentOrganization()) {
-              return item
-            }
-          })
-        }
-
-        // set first organization of list
         if (isEmptyValue(organization)) {
-          organization = response.organizationsList[0]
+          organization = response.organizationsList.at(0)
         }
-
-        setCurrentOrganization(organization.uuid)
+        commit('SET_ORGANIZATIONS_LIST', response.organizationsList)
+        const { id } = organization
+        setCurrentOrganization(id)
         commit('SET_ORGANIZATION', organization)
-        commit('SET_CURRENT_ORGANIZATION_ID', organization.id)
-        commit('setPreferenceContext', {
-          columnName: `#${ORGANIZATION}`,
-          value: organization.id
-        }, {
-          root: true
-        })
+        commit('SET_CURRENT_ORGANIZATION_ID', id)
+        // commit('setPreferenceContext', {
+        //   columnName: `#${ORGANIZATION}`,
+        //   value: organization.id
+        // }, {
+        //   root: true
+        // })
 
-        dispatch('getWarehousesList', organization.uuid)
+        dispatch('getWarehousesList', {
+          organizationId: organization.id
+        })
       })
       .catch(error => {
         console.warn(`Error ${error.code} getting Organizations list: ${error.message}.`)
@@ -401,7 +540,6 @@ const actions = {
   },
 
   changeOrganization({ commit, dispatch, getters }, {
-    organizationUuid,
     organizationId,
     isCloseAllViews = true
   }) {
@@ -413,32 +551,44 @@ const actions = {
       root: true
     })
 
+    const isSameOrganization = organizationId === getCurrentOrganization()
+
     return requestChangeRole({
-      token: getToken(),
-      roleUuid: getCurrentRole(),
-      organizationUuid
+      roleId: getCurrentRole(),
+      organizationId
     })
-      .then(changeRoleResponse => {
-        const { uuid } = changeRoleResponse
+      .then(response => {
+        const { token } = response
+        commit('SET_TOKEN', token)
+        setToken(token)
 
-        commit('SET_TOKEN', uuid)
-        setToken(uuid)
+        const organizationsList = getters.getOrganizations
+        let organization = organizationsList.find(org => {
+          return org.id === organizationId
+        })
+        if (isEmptyValue(organization) && !isEmptyValue(organizationsList)) {
+          organization = organizationsList.at(0)
+        }
+        const { id } = organization
+        setCurrentOrganization(id)
 
-        setCurrentOrganization(organizationUuid)
-        const organization = getters.getOrganizations.find(org => org.uuid === organizationUuid)
         commit('SET_ORGANIZATION', organization)
-        commit('SET_CURRENT_ORGANIZATION_ID', organization.id)
+        commit('SET_CURRENT_ORGANIZATION_ID', id)
         commit('setPreferenceContext', {
           columnName: `#${ORGANIZATION}`,
-          value: organization.id
+          value: id
         }, {
           root: true
         })
 
         // Update user info and context associated with session
-        dispatch('getSessionInfo', uuid)
-
-        dispatch('getWarehousesList', organizationUuid)
+        // dispatch('getSessionInfo', tokenSession)
+        // refresh warehouses
+        if (!isSameOrganization) {
+          dispatch('getWarehousesList', {
+            organizationId: id
+          })
+        }
 
         showMessage({
           message: language.t('notifications.successChangeRole'),
@@ -447,49 +597,86 @@ const actions = {
         })
       })
       .catch(error => {
+        let messageError = error
+        if (error.message) {
+          messageError = error.message
+        }
         showMessage({
-          message: error.message,
+          message: messageError,
           type: 'error',
           showClose: true
         })
-        console.warn(`Error change role: ${error.message}. Code: ${error.code}.`)
+        console.warn(`Error change role: ${messageError}. Code: ${error.code}.`)
       })
       .finally(() => {
         dispatch('permission/sendRequestMenu', null, {
           root: true
         })
-        location.href = '/'
+
+        dispatch('resetStateBusinessData', null, {
+          root: true
+        })
+        // location.href = '/'
       })
   },
 
-  getWarehousesList({ commit }, organizationUuid) {
-    if (isEmptyValue(organizationUuid)) {
-      organizationUuid = getCurrentOrganization()
+  getWarehousesList({ commit, dispatch }, {
+    organizationId
+  }) {
+    if (isEmptyValue(organizationId)) {
+      organizationId = getCurrentOrganization()
+    }
+    if (isEmptyValue(organizationId)) {
+      dispatch('changeWarehouse', {
+        warehouseId: -1
+      })
+      commit('SET_WAREHOUSE', undefined)
+      commit('setPreferenceContext', {
+        columnName: `#${WAREHOUSE}`,
+        value: -1
+      }, {
+        root: true
+      })
+      removeCurrentWarehouse()
+      return
     }
 
-    return requestWarehousesList({
-      organizationUuid
+    return warehousesListRequest({
+      organizationId
     })
       .then(response => {
-        commit('SET_WAREHOUSES_LIST', response.warehousesList)
-
-        let warehouse = response.warehousesList.find(item => item.uuid === getCurrentWarehouse())
-        if (isEmptyValue(warehouse)) {
-          warehouse = response.warehousesList[0]
+        const { warehouses } = response
+        commit('SET_WAREHOUSES_LIST', warehouses)
+        let warehouse = warehouses.find(warehouseItem => {
+          return warehouseItem.id === getCurrentWarehouse()
+        })
+        if (isEmptyValue(warehouse) && !isEmptyValue(warehouses)) {
+          warehouse = warehouses.at(0)
         }
-        if (isEmptyValue(warehouse)) {
+
+        let warehouseId = -1
+        if (!isEmptyValue(warehouse)) {
+          warehouseId = warehouse.id
+        }
+
+        if (isEmptyValue(warehouseId)) {
           removeCurrentWarehouse()
-          commit('SET_WAREHOUSE', undefined)
-        } else {
-          setCurrentWarehouse(warehouse.uuid)
-          commit('SET_WAREHOUSE', warehouse)
-          commit('setPreferenceContext', {
-            columnName: `#${WAREHOUSE}`,
-            value: warehouse.id
-          }, {
-            root: true
+        }
+        const currentWarehouseId = getCurrentWarehouse()
+        if (warehouseId !== currentWarehouseId) {
+          dispatch('changeWarehouse', {
+            warehouseId
           })
         }
+
+        setCurrentWarehouse(warehouseId)
+        commit('SET_WAREHOUSE', warehouse)
+        commit('setPreferenceContext', {
+          columnName: `#${WAREHOUSE}`,
+          value: warehouseId
+        }, {
+          root: true
+        })
       })
       .catch(error => {
         console.warn(`Error ${error.code} getting Warehouses list: ${error.message}.`)
@@ -497,11 +684,13 @@ const actions = {
   },
 
   changeWarehouse({ commit, state }, {
-    warehouseUuid
+    warehouseId
   }) {
-    setCurrentWarehouse(warehouseUuid)
+    setCurrentWarehouse(warehouseId)
 
-    const currentWarehouse = state.warehousesList.find(warehouse => warehouse.uuid === warehouseUuid)
+    const currentWarehouse = state.warehousesList.find(warehouseItem => {
+      return warehouseItem.id === warehouseId
+    })
     commit('SET_WAREHOUSE', currentWarehouse)
 
     commit('setPreferenceContext', {
@@ -510,13 +699,22 @@ const actions = {
     }, {
       root: true
     })
+    setSessionAttribute({
+      warehouseId: currentWarehouse.id
+    })
+      .then(response => {
+        const { token } = response
+        commit('SET_TOKEN', token)
+        setToken(token)
+        // location.reload()
+      })
   },
 
   // dynamically modify permissions
   changeRole({ commit, dispatch }, {
-    roleUuid,
-    organizationUuid,
-    warehouseUuid,
+    roleId,
+    organizationId,
+    warehouseId,
     isCloseAllViews = true
   }) {
     dispatch('tagsView/setCustomTagView', {
@@ -526,32 +724,32 @@ const actions = {
     })
 
     return requestChangeRole({
-      token: getToken(),
-      roleUuid,
-      organizationUuid,
-      warehouseUuid
+      roleId,
+      organizationId,
+      warehouseId
     })
-      .then(changeRoleResponse => {
-        const { role, uuid } = changeRoleResponse
+      .then(response => {
+        const { token } = response
+        commit('SET_TOKEN', token)
+        setToken(token)
 
-        commit('SET_ROLE', role)
-        setCurrentRole(role.uuid)
+        // commit('SET_ROLE', role)
+        setCurrentRole(roleId)
 
-        commit('SET_TOKEN', uuid)
-        setToken(uuid)
+        removeCurrentOrganization()
+        removeCurrentWarehouse()
 
         // Update user info and context associated with session
-        dispatch('getSessionInfo', uuid)
+        // dispatch('getSessionInfo', uuid)
+
+        dispatch('getSessionInfo')
 
         showMessage({
           message: language.t('notifications.successChangeRole'),
           type: 'success',
           showClose: true
         })
-        return {
-          ...role,
-          sessionUuid: uuid
-        }
+        return roleId
       })
       .catch(error => {
         showMessage({
@@ -565,8 +763,195 @@ const actions = {
         dispatch('permission/sendRequestMenu', null, {
           root: true
         })
-        location.href = '/'
+
+        dispatch('resetStateBusinessData', null, {
+          root: true
+        })
       })
+  },
+
+  loadingActivitylogsFromServer({ commit }, date) {
+    return new Promise(resolve => {
+      requestUserActivity({
+        date
+      })
+        .then(response => {
+          const { records } = response
+          const activitylogs = response.records.map((logs, index) => {
+            const userActivityType = logs.user_activity_type
+            let processLog, entityLog
+            switch (userActivityType) {
+              case 'ENTITY_LOG':
+                entityLog = {
+                  ...camelizeObjectKeys(logs.entity_log),
+                  changeLogs: logs.entity_log.change_logs
+                }
+                break
+              case 'PROCESS_LOG':
+                processLog = {
+                  ...camelizeObjectKeys(logs.process_log),
+                  parameters: convertObjectToKeyValue(logs.process_log.parameters)
+                }
+                break
+            }
+            return {
+              ...camelizeObjectKeys(logs),
+              entityLog,
+              processLog,
+              show: true,
+              index
+            }
+          })
+          commit('setActivityLogs', activitylogs)
+          resolve(records)
+        })
+        .catch(error => {
+          resolve([])
+          commit('setActivityLogs', [])
+          console.warn(`Error getting List User Activity: ${error.message}. Code: ${error.code}.`)
+        })
+    })
+  },
+  system({ commit }) {
+    return new Promise(resolve => {
+      systemInfo()
+        .then(response => {
+          if (isEmptyValue(response)) {
+            resolve()
+            return
+          }
+          const info = camelizeObjectKeys(response)
+          let systemName = title
+          if (!isEmptyValue(info.name)) {
+            systemName = info.name
+          }
+          commit('setSystem', {
+            ...info,
+            name: systemName
+          })
+
+          resolve(info)
+        })
+        .catch(error => {
+          commit('setSystem', {})
+          console.warn(`Error getting System Info: ${error.message}. Code: ${error.code}.`)
+          resolve({})
+        })
+    })
+  },
+  systemDictionary({ commit }) {
+    return new Promise(resolve => {
+      let systemInfo = {
+        version: '0.0.1'
+      }
+      systemInfoDictionary()
+        .then(response => {
+          if (!isEmptyValue(response) && !isEmptyValue(response.version)) {
+            systemInfo = response
+          }
+          commit('setSystemDictionary', {
+            ...systemInfo,
+            ...response
+          })
+          resolve(systemInfo)
+        })
+        .catch(error => {
+          commit('setSystemDictionary', {
+            ...systemInfo
+          })
+          console.warn(`Error getting System Info: ${error.message}. Code: ${error.code}.`)
+          resolve(systemInfo)
+        })
+    })
+  },
+
+  systemS3({ commit }) {
+    return new Promise(resolve => {
+      let systemInfo = {
+        version: '0.0.1'
+      }
+      systemInfoS3()
+        .then(response => {
+          if (!isEmptyValue(response)) {
+            systemInfo = {
+              ...systemInfo,
+              ...response
+            }
+          }
+          commit('setSystemS3', systemInfo)
+          resolve(systemInfo)
+        })
+        .catch(error => {
+          commit('setSystemS3', systemInfo)
+          console.warn(`Error getting System Info: ${error.message}. Code: ${error.code}.`)
+          resolve(systemInfo)
+        })
+    })
+  },
+  systemReportEngine({ commit }) {
+    return new Promise(resolve => {
+      let systemInfo = {
+        version: '0.0.1'
+      }
+      systemInfoReportEngine()
+        .then(response => {
+          if (!isEmptyValue(response)) {
+            const { main_version: version } = response
+            systemInfo = {
+              version
+            }
+          }
+          commit('setSystemReportEngine', systemInfo)
+          resolve(systemInfo)
+        })
+        .catch(error => {
+          commit('setSystemReportEngine', systemInfo)
+          console.warn(`Error getting System Info: ${error.message}. Code: ${error.code}.`)
+          resolve(systemInfo)
+        })
+    })
+  },
+  searchImageLogoOnServer({ commit, getters }) {
+    const { client } = getters.getRole
+    const url = pathImageWindows({
+      clientId: client.uuid,
+      tableName: TABLE_NAME_CLIENT,
+      recordId: client.id,
+      columnName: COLUMN_NAME,
+      resourceName: `${COLUMN_NAME}.png`
+    })
+    fetch(url)
+      .then((responseImage) => {
+        if (responseImage.ok) {
+          commit('setLogo', url)
+          return
+        }
+        commit('setLogo', 'https://avatars1.githubusercontent.com/u/1263359?s=200&v=4')
+      })
+  },
+  async searchImageUserOnServer({ commit, getters }, {
+    userInfo
+  }) {
+    // const { userInfo } = getters.userInfo
+    const url = pathImageWindows({
+      clientId: userInfo.client_uuid,
+      tableName: TABLE_NAME_USER,
+      recordId: userInfo.id,
+      columnName: COLUMN_NAME,
+      resourceName: `${COLUMN_NAME}.png`
+    })
+    try {
+      fetch(url)
+        .then((responseImage) => {
+          if (responseImage.ok) {
+            commit('setUserImage', url)
+            return
+          }
+          commit('setUserImage', '')
+        })
+    } catch (error) {
+      console.error('Error al validar la URL:', error)
+    }
   }
 }
 
@@ -597,15 +982,55 @@ const getters = {
   getWarehouse: (state) => {
     return state.warehouse
   },
-  getUserUuid: (state) => {
-    return state.userUuid
+  getUserId: (state) => {
+    return state.userId
   },
   userInfo: (state) => {
     return state.userInfo
   },
+  getUserAvatar: (state) => {
+    if (isEmptyValue(state.avatar)) return ''
+    return `${config.adempiere.api.url}resources/${state.avatar}`
+  },
   // TODO: Manage with vuex module to personal lock
   getIsPersonalLock: (state) => {
     return state.role.isPersonalLock
+  },
+  getActivityLogs: (state) => {
+    return state.activityLogs
+  },
+  getSystem: (state) => {
+    return state.systemInfo
+  },
+  getDictionaryCode: (state) => {
+    if (isEmptyValue(state.role)) {
+      return ''
+    }
+    if (isEmptyValue(state.role.client)) {
+      return ''
+    }
+    return state.role.client.dictionary_code
+  },
+  getDictionaryVersion: (state) => {
+    return state.dictionary
+  },
+  getS3Version: (state) => {
+    return state.s3Version
+  },
+  getReportEngineVersion: (state) => {
+    return state.reportEngineVersion
+  },
+  getCurrencyPrecision: (state) => {
+    return state.precisionContext
+  },
+  getUOMPrecision: (state) => {
+    return state.precisionUOMContext
+  },
+  getLogoUrl: (state) => {
+    return state.logoUrl
+  },
+  getUserUrl: (state) => {
+    return state.userImageUrl
   }
 }
 

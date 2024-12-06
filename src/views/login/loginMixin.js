@@ -1,4 +1,4 @@
-import LangSelect from '@theme/components/LangSelect'
+import LangSelect from '@/components/LangSelect'
 
 export default {
   name: 'MixinLogin',
@@ -17,7 +17,6 @@ export default {
       })
     },
     pathRedirect(path = 'login') {
-      console.log({ path })
       this.$router.push({
         path
       }).catch(error => {

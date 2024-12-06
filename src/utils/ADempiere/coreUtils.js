@@ -1,30 +1,34 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-import router from '@/router'
 import language from '@/lang'
+import router from '@/router'
 import store from '@/store'
 
+// Utils and Helper Methods
 import { showMessage } from '@/utils/ADempiere/notification'
 import { isEmptyValue, recursiveTreeSearch } from '@/utils/ADempiere/valueUtils.js'
 
 /**
  * Zoom in view with uuid
  * @author Edwin Betancourt <EdwinBetanc0urt@outlook.com>
- * @param {string} uuid
+ * @param {string} attributeValue
+ * @param {string} attributeName
  * @param {object} params
  * @param {object} query
  * @param {boolean} isShowMessage
@@ -32,11 +36,13 @@ import { isEmptyValue, recursiveTreeSearch } from '@/utils/ADempiere/valueUtils.
  */
 export function zoomIn({
   uuid,
+  attributeValue = uuid,
+  attributeName = 'uuid',
   params = {},
   query = {},
   isShowMessage = true
 }) {
-  if (isEmptyValue(uuid)) {
+  if (isEmptyValue(attributeValue)) {
     if (isShowMessage) {
       showMessage({
         type: 'error',
@@ -51,12 +57,15 @@ export function zoomIn({
 
   const viewSearch = recursiveTreeSearch({
     treeData: menuTree,
-    attributeValue: uuid,
+    attributeValue: attributeValue,
     attributeName: 'meta',
-    secondAttribute: 'uuid',
+    secondAttribute: attributeName,
     attributeChilds: 'children'
   })
-
+  // if (query.filters) {
+  //   const parseFilter = JSON.stringify(query.filters[0])
+  //   query.filters = [parseFilter]
+  // }
   if (!isEmptyValue(viewSearch)) {
     router.push({
       name: viewSearch.name,

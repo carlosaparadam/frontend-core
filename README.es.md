@@ -39,10 +39,10 @@ Este es una gran UI para [ADempiere ERP, CRM & SCM](https://github.com/adempiere
 
 [adempiere-vue](https://github.com/adempiere/adempiere-vue) usa como RPC (Llamado a Procedimientos Remotos)[gRPC](https://grpc.io/) como [server](https://github.com/adempiere/adempiere-gRPC-Server).
 
-- [Vista Prévia de la Aplicación](https://demo-ui.erpya.com/)
+- [Vista Prévia de la Aplicación](https://vue-develop.solopcloud.com/)
 
-  - **User**: demo
-  - **Password**: demo
+  - **Usuario**: `GardenAdmin`
+  - **Contraseña**: `GardenAdmin`
 
 - [Documentación](https://adempiere.github.io/adempiere-vue-site/)
 
@@ -76,82 +76,43 @@ Entendiendo y aprendiendo acerca de lo anterior le ayudará a conocer el proyect
 Para usar la imagen de Docker debes usar la versión 3.0 o superior de Docker.
 
 Construye la Imagen de docker (solo para desarrollo):
-```shell
-docker build -t erpya/adempiere-vue:dev -f ./Dockerfile .
+```bash
+docker build -t solopcloud/adempiere-vue:dev -f ./Dockerfile .
 ```
 
 Descarga de Imagen:
-```shell
-docker pull erpya/adempiere-vue
+```bash
+docker pull solopcloud/adempiere-vue
 ```
 
 Ejecución de Contenedor:
-```shell
+```bash
 docker run -it \
 	--name adempiere-vue \
 	-p 80:80 \
-	-e API_URL="https://api.erpya.com" \
-	erpya/adempiere-vue
+	-e API_URL="http://localhost:8080/api/" \
+	-e TZ="America/Caracas" \
+	solopcloud/adempiere-vue
 ```
 
-
-### Variables de entorno para la configuración
-
- * `API_URL`: Indica la dirección URL del servidor con el que se comunicará por defecto el cliente web [Proxy-Adempiere-Api](https://github.com/adempiere/proxy-adempiere-api), el valor por defecto es `https://https://api.erpya.com`.
-
-NOTA: Si no cambias los valores de esta variable de entorno, no es necesario indicarlo en el comando `docker run`, por defecto colocará el valor que se encuentra predeterminado.
-
-
-### Corriendo los contenedores con docker-compose:
-
-Facilmente puedes correr el contenedor usando docker-compose con el siguiente comando:
-```shell
+O facilmente ejecutar el contenedor usando `docker-compose` con el siguiente comando:
+```bash
 docker-compose up
 ```
 
-Salida de la consola:
-```shell
-Building web-client
-Step 1/8 : FROM node:12-alpine
- ---> 057fa4cc38c2
-Step 2/8 : LABEL maintainer="EdwinBetanc0urt@outlook.com"       description="ADempiere-Vue"
- ---> Running in d096cf76ce2d
-Removing intermediate container d096cf76ce2d
- ---> 46cc05704121
-Step 3/8 : ENV RELEASE_VERSION="3.9.3"
- ---> Running in 9048d159aaf9
-Removing intermediate container 9048d159aaf9
- ---> a19699234a5d
-Step 4/8 : ENV URL_REPO="https://github.com/adempiere/adempiere-vue"    BINARY_NAME="v$RELEASE_VERSION.zip"     VUE_APP_PROXY_ADDRESS="localhost"       VUE_APP_PROXY_PORT="8989"
- ---> Running in c703a3818cbf
-Removing intermediate container c703a3818cbf
- ---> 86b0c2b269c6
-Step 5/8 : RUN mkdir -p /opt/Apps &&    cd /opt/Apps &&         echo "Install needed packages... $BINARY_NAME $RELEASE_VERSION" &&      apk --no-cache add curl unzip &&        curl --output "$BINARY_NAME" -L "$URL_REPO/archive/$BINARY_NAME" &&     unzip -o "$BINARY_NAME" &&      rm "$BINARY_NAME" &&    mv "adempiere-vue-$RELEASE_VERSION" adempiere-vue &&    cd adempiere-vue &&    npm install &&   npm run build:prod
- ---> Running in 6f3cb21924dd
-Install needed packages... v3.9.3.zip 3.9.3
-fetch http://dl-cdn.alpinelinux.org/alpine/v3.11/main/x86_64/APKINDEX.tar.gz
-fetch http://dl-cdn.alpinelinux.org/alpine/v3.11/community/x86_64/APKINDEX.tar.gz
-(1/5) Installing ca-certificates (20191127-r2)
-(2/5) Installing nghttp2-libs (1.40.0-r1)
-(3/5) Installing libcurl (7.67.0-r0)
-(4/5) Installing curl (7.67.0-r0)
-(5/5) Installing unzip (6.0-r6)
-Executing busybox-1.31.1-r9.trigger
-Executing ca-certificates-20191127-r2.trigger
-OK: 9 MiB in 21 packages
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100   128  100   128    0     0    149      0 --:--:-- --:--:-- --:--:--   149
-100  916k    0  916k    0     0   180k      0 --:--:--  0:00:05 --:--:--  254k
-Archive:  v3.9.3.zip
-1d684b76328e3f6bcd3f75ea011087cce1c13a3c
-   creating: adempiere-vue-3.9.3/
-  inflating: adempiere-vue-3.9.3/.babelrc
-  inflating: adempiere-vue-3.9.3/.editorconfig
-adempiere-ui-client |
-adempiere-ui-client | > Listening at  http://localhost:9526/
+### Variables de entorno para la configuración
 
-```
+ * `PUBLIC_PATH`: Tendrás que establecer publicPath si planeas desplegar tu sitio bajo una sub-ruta, por ejemplo GitHub Pages. Si planeas desplegar tu sitio en `https://adempiere-vue.github.io/bar/`, entonces publicPath debe establecerse en `/bar/`. En la mayoría de los casos, utilice `/`.
+ 
+ * `API_URL`: Indica la dirección URL del servidor con el que se comunicará por defecto el cliente web [ADempiere-UI-Gateway](https://github.com/adempiere/adempiere-ui-gateway), el valor por defecto es `http://localhost:8080/api/`.
+
+ * `TASK_MANAGER_URL`: Indica la dirección URL del API RESTFul para el mangejador de tareas [ADempiere-Business-Processors](https://github.com/adempiere/adempiere-business-processors) y [`dKron`](https://dkron.io/), el valor por defecto es `http://localhost:8085`.
+
+ * `TZ`: (Time Zone) Indica el huso horario a establecer en el contenedor basado en nginx, el valor por defecto es `America/Caracas` (UTC -4:00).
+
+> **Nota**
+> Si no cambias los valores de esta variable de entorno, no es necesario indicarlo en el comando `docker run`, por defecto colocará el valor que se encuentra predeterminado.
+
 
 ## Patrocinantes
 
@@ -162,7 +123,7 @@ adempiere-ui-client | > Listening at  http://localhost:9526/
   <img width="150px" src="http://westfalia-it.com/wp-content/uploads/2021/04/logo_.gif" />
 </a>
 <a href="http://openupsolutions.com/">
-  <img width="250px" src="https://user-images.githubusercontent.com/45974454/167717853-7c02defb-4b69-4d3d-af68-5db3e956ee6f.png" />
+  <img width="250px" src="https://openupsolutions.com/wp-content/uploads/2021/08/logo-openup-horizontal.jpg" />
 </a>
 
 Sea un patrocinante y coloque su logo en nuestro LEEME en GitHub con un enlace directo a su sitio web. [Sea un Patrocinante](https://www.paypal.me/YamelSenih)
@@ -250,8 +211,11 @@ Sea un patrocinante y coloque su logo en nuestro LEEME en GitHub con un enlace d
 Use [gRPC ADempiere Server](https://github.com/adempiere/adempiere-gRPC-Server) como proveedor de gRPC.
 
 ```bash
+# Habilita https para instalar los paquetes
+git config --global url."https://".insteadOf git://
+
 # clone el proyecto
-git clone -b experimental --recursive https://github.com/solop-develop/frontend-core.git
+git clone -b experimental https://github.com/solop-develop/frontend-core.git
 
 # vaya al directorio clonado
 cd frontend-core
@@ -293,12 +257,6 @@ yarn lint --fix
 
 Vaya a [Documentación](https://adempiere.github.io/adempiere-vue/es/guide/essentials/deploy.html#compilar) para mayor información.
 
-## Contenedor Docker
-
-```bash
-# requiere permisos de super usuario del sistema operativo ('su' o 'sudo')
-docker-componer up
-```
 
 ## Registro de Cambios
 
@@ -306,10 +264,10 @@ Los cambios detallados por cada liberación se encuentran en [notas de liberaci�
 
 ## Demostración en línea
 
-[Vista Prévia de la Aplicación](https://demo-ui.erpya.com/)
+[Vista Prévia de la Aplicación](https://vue-develop.solopcloud.com/)
 
-  - **User**: demo
-  - **Password**: demo
+  - **Usuario**: `GardenAdmin`
+  - **Contraseña**: `GardenAdmin`
 
 ## Donación
 

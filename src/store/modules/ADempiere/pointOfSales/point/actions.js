@@ -14,7 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+import language from '@/lang'
 import router from '@/router'
+
+// api request methods
 import {
   getPointOfSales,
   listPointOfSales,
@@ -25,9 +28,10 @@ import {
   listPrices,
   listCurrencies
 } from '@/api/ADempiere/form/point-of-sales.js'
+
+// utils and helper methods
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 import { showMessage } from '@/utils/ADempiere/notification.js'
-import language from '@/lang'
 
 /**
  * Pos Actions
@@ -35,8 +39,10 @@ import language from '@/lang'
 export default {
   /**
    * Load Point of Sale Data from Server
+   * TODO: Unused, removed on FormDefinition component, created hook
    */
-  loadDataFromServer({ dispatch, getters }) {
+  loadDataFromServer({ commit, dispatch, getters }) {
+    commit('customer', {})
     const PointOfSales = getters.posAttributes.currentPointOfSales
     if (!isEmptyValue(PointOfSales.uuid)) {
       dispatch('findPointOfSales', PointOfSales.uuid)
@@ -55,7 +61,7 @@ export default {
         commit('setCurrentPointOfSales', response)
       })
       .catch(error => {
-        console.warn(`listPointOfSalesFromServer: ${error.message}. Code: ${error.code}.`)
+        console.warn(`findPointOfSales: ${error.message}. Code: ${error.code}.`)
         showMessage({
           type: 'error',
           message: error.message,
@@ -75,6 +81,14 @@ export default {
     })
       .then(response => {
         pointOfSalesList = response.sellingPointsList
+        if (isEmptyValue(pointOfSalesList)) {
+          showMessage({
+            type: 'error',
+            message: 'Sin Error',
+            showClose: true
+          })
+          return
+        }
         if (isEmptyValue(pos) && isEmptyValue(posToSet) && !isEmptyValue(pointOfSalesList)) {
           pos = pointOfSalesList.find(itemPOS => itemPOS.salesRepresentative.uuid === userUuid)
         }
@@ -86,6 +100,7 @@ export default {
         }
         commit('setPointOfSalesList', pointOfSalesList)
         if (pos) {
+          commit('customer', pos.templateCustomer)
           dispatch('setCurrentPOS', pos)
         } else {
           showMessage({

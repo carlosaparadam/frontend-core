@@ -1,30 +1,31 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-// api request methods
+// API Request Methods
+import { requestLanguagesList } from '@/api/ADempiere/system-core.js'
 import {
-  requestLanguagesList
-} from '@/api/ADempiere/system-core.js'
+  requestRunBusinessProcess as runResetCache
+} from '@/api/ADempiere/business-data/runBusinessProcess.ts'
 
-import {
-  requestRunProcess as runCache
-} from '@/api/ADempiere/process'
+// Constants
+import { RESET_CACHE_PROCESS_ID } from '@/utils/ADempiere/constants/process'
 
-// utils and helper methods
-import { RESET_CACHE_PROCESS_UUID } from '@/utils/ADempiere/constants/process'
+// Utils and Helper Methods
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 import { convertDateFormat } from '@/utils/ADempiere/formatValue/dateFormat.js'
 
@@ -39,14 +40,7 @@ const system = {
       state.systemDefinition = payload
     },
     setLanguagesList: (state, payload) => {
-      const languagesList = payload.map(language => {
-        return {
-          ...language,
-          datePattern: convertDateFormat(language.datePattern),
-          timePattern: convertDateFormat(language.timePattern)
-        }
-      })
-
+      const languagesList = payload
       state.languagesList = Object.freeze(languagesList)
     }
   },
@@ -59,12 +53,14 @@ const system = {
           pageSize: undefined
         })
           .then(languageResponse => {
-            dispatch('serverListActivity', rootGetters['user/getUserUuid'])
-            const languagesList = languageResponse.languagesList.map(language => {
+            dispatch('serverListActivity', {})
+            const languagesList = languageResponse.languages.map(language => {
               return {
                 ...language,
-                datePattern: convertDateFormat(language.datePattern),
-                timePattern: convertDateFormat(language.timePattern)
+                languageISO: language.language_iso,
+                languageName: language.language_name,
+                datePattern: convertDateFormat(language.date_pattern),
+                timePattern: convertDateFormat(language.time_pattern)
               }
             })
 
@@ -77,12 +73,12 @@ const system = {
           })
       })
     },
-    runCache({ commit, dispatch }) {
-      runCache({
-        uuid: RESET_CACHE_PROCESS_UUID
+    runCacheReset({ commit }) {
+      runResetCache({
+        id: RESET_CACHE_PROCESS_ID
       })
         .then(() => {
-          location.reload()
+          location.reload(true)
         })
     }
 
@@ -116,11 +112,15 @@ const system = {
     getLanguagesList: (state) => {
       return state.languagesList
     },
-    getCurrentLanguageDefinition: (state) => {
+    getCurrentLanguage: (state) => {
       let { language } = state.systemDefinition
       if (isEmptyValue(language)) {
         language = 'en_US'
       }
+      return language
+    },
+    getCurrentLanguageDefinition: (state, getters) => {
+      const language = getters.getCurrentLanguage
       return state.languagesList.find(definition => {
         return definition.language === language
       })

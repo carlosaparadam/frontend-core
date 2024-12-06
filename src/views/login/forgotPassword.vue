@@ -2,10 +2,13 @@
   <div class="login-container">
     <el-form ref="forgotForm" :model="forgotForm" class="login-form" auto-complete="off" label-position="left">
       <el-row>
-        <el-col :span="3">
-          <img src="https://avatars1.githubusercontent.com/u/1263359?s=200&v=4" class="image">
+        <el-col :span="4">
+          <img
+            :src="logo"
+            style="width: 100px;height: 80px;"
+          >
         </el-col>
-        <el-col :span="20">
+        <el-col :span="20" style="margin-top: 15px;">
           <div class="title-container">
             <h3 class="title">
               {{ $t('route.forgotPassword') }}
@@ -22,7 +25,7 @@
         <el-input
           ref="userName"
           v-model="forgotForm.userName"
-          :placeholder="$t('login.userNameOrEmail')"
+          :placeholder="$t('page.login.userNameOrEmail')"
           type="text"
           tabindex="1"
           auto-complete="off"
@@ -37,7 +40,7 @@
         style="width:100%;margin-bottom:30px;"
         @click.native.prevent="handleSubmit"
       >
-        {{ $t('login.submit') }}
+        {{ $t('page.login.submit') }}
       </el-button>
 
       <el-button type="text" style="float: left" @click.native.prevent="pathRedirect('login')">
@@ -65,6 +68,15 @@ export default {
       loading: false
     }
   },
+  computed: {
+    logo() {
+      const { logoUrl } = this.$store.getters['user/getSystem']
+      if (logoUrl) {
+        return logoUrl
+      }
+      return 'https://avatars1.githubusercontent.com/u/1263359?s=200&v=4'
+    }
+  },
   methods: {
     handleSubmit() {
       if (!this.isEmptyValue(this.forgotForm.userName)) {
@@ -73,7 +85,7 @@ export default {
           .then(forgotPasswordResponse => {
             if (forgotPasswordResponse === 'Ok') {
               this.$message({
-                message: this.$t('login.passwordResetSendLink') + this.forgotForm.userName,
+                message: this.$t('page.login.passwordResetSendLink') + this.forgotForm.userName,
                 showClose: true,
                 type: 'success'
               })
@@ -81,7 +93,7 @@ export default {
               this.pathRedirect()
             } else {
               this.$message({
-                message: this.$t('login.unexpectedError'),
+                message: this.$t('page.login.unexpectedError'),
                 showClose: true,
                 type: 'error'
               })
@@ -89,7 +101,7 @@ export default {
           })
           .catch(error => {
             this.$message({
-              message: this.$t('login.unexpectedError'),
+              message: this.$t('page.login.unexpectedError'),
               showClose: true,
               type: 'error'
             })

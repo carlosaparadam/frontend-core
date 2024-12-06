@@ -1,30 +1,36 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+// Constants
+import { IGNORE_VALUE_OPERATORS_LIST } from '@/utils/ADempiere/dataUtils'
+import {
+  LOG_COLUMNS_NAME_LIST,
+  SALES_TRANSACTION_COLUMNS
+} from '@/utils/ADempiere/constants/systemColumns'
 
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
+// Utils and Helper Methods
 import {
   isEmptyValue,
   parsedValueComponent
 } from '@/utils/ADempiere/valueUtils.js'
-import {
-  LOG_COLUMNS_NAME_LIST
-} from '@/utils/ADempiere/constants/systemColumns'
-import {
-  fieldIsDisplayed,
-  getDefaultValue
-} from '@/utils/ADempiere/dictionaryUtils.js'
+import { fieldIsDisplayed } from '@/utils/ADempiere/dictionaryUtils.js'
+import { isSupportLookup } from '@/utils/ADempiere/references'
+import { getContextDefaultValue } from '@/utils/ADempiere/contextUtils/contextField'
 
 const getters = {
   getPanel: (state) => (containerUuid) => {
@@ -34,18 +40,18 @@ const getters = {
     })
   },
 
-  getFieldsListFromPanel: (state, getters) => (containerUuid) => {
-    const panel = getters.getPanel(containerUuid)
-    if (isEmptyValue(panel)) {
-      return []
-    }
+  getFieldsListFromPanel: (state, getters, rootGetters) => (containerUuid, parentUuid) => {
+    const panel = rootGetters['dictionary/index'].storedWindows[parentUuid]
+    if (isEmptyValue(panel)) return []
     return panel.fieldsList
   },
 
-  getFieldFromColumnName: (state, getters) => ({ containerUuid, columnName }) => {
-    return getters.getFieldsListFromPanel(containerUuid).find(itemField => {
+  getFieldFromColumnName: (state, getters, rootState) => ({ containerUuid, parentUuid, columnName }) => {
+    const columName = getters.getFieldsListFromPanel(containerUuid).find(itemField => {
       return itemField.columnName === columnName
     })
+    if (isEmptyValue(columName)) return {}
+    return columName
   },
 
   /**
@@ -64,9 +70,9 @@ const getters = {
         return false
       }
 
-      const isMandatory = fieldItem.isMandatory || fieldItem.isMandatoryFromLogic
-      const isDisplayed = fieldIsDisplayed(fieldItem) && (fieldItem.isShowedFromUser || isMandatory)
-      if (isDisplayed && isMandatory) {
+      const isMandatoryGenerated = fieldItem.is_mandatory || fieldItem.isMandatoryFromLogic
+      const isDisplayedGenerated = fieldIsDisplayed(fieldItem) && (fieldItem.isShowedFromUser || isMandatoryGenerated)
+      if (isDisplayedGenerated && isMandatoryGenerated) {
         let value
         // used when evaluate data in table
         if (row) {
@@ -118,8 +124,8 @@ const getters = {
       })
 
       if (isEmptyValue(value)) {
-        const isMandatory = fieldItem.isMandatory || fieldItem.isMandatoryFromLogic
-        if (showedMethod(fieldItem) && isMandatory) {
+        const isMandatoryGenerated = fieldItem.is_mandatory || fieldItem.isMandatoryFromLogic
+        if (showedMethod(fieldItem) && isMandatoryGenerated) {
           return true
         }
       }
@@ -159,19 +165,24 @@ const getters = {
     // all optionals (not mandatory) fields
     return fieldsList
       .filter(fieldItem => {
-        const isMandatory = fieldItem.isMandatory || fieldItem.isMandatoryFromLogic
-        if (isMandatory && !isTable) {
+        const { default_value, is_mandatory, is_parent } = fieldItem
+
+        // parent column
+        if (is_parent) {
+          return true
+        }
+        const isMandatoryGenerated = is_mandatory || fieldItem.isMandatoryFromLogic
+        if (isMandatoryGenerated && isEmptyValue(default_value) && !isTable) {
           return false
         }
 
-        const { defaultValue } = fieldItem
         if (isEvaluateDefaultValue && isEvaluateShowed) {
           return showedMethod(fieldItem) &&
-            !isEmptyValue(defaultValue)
+            !isEmptyValue(default_value)
         }
 
         if (isEvaluateDefaultValue) {
-          return !isEmptyValue(defaultValue)
+          return !isEmptyValue(default_value)
         }
 
         if (isEvaluateShowed) {
@@ -246,7 +257,7 @@ const getters = {
         }
 
         // add range columns
-        if (isAddRangeColumn && fieldItem.isRange) {
+        if (isAddRangeColumn && fieldItem.is_range) {
           attributesObject[`${fieldItem.columnName}_To`] = fieldItem.valueTo
           rangeColumnsList.push({
             columnName: `${fieldItem.columnName}_To`,
@@ -276,7 +287,7 @@ const getters = {
     parentUuid,
     containerUuid,
     isGetServer = true,
-    isSOTrxMenu,
+    isSOTrxDictionary,
     fieldsList = [],
     formatToReturn = 'array'
   }) => {
@@ -289,33 +300,49 @@ const getters = {
     const attributesObject = {}
     let attributesList = fieldsList
       .map(fieldItem => {
-        const { id, uuid, columnName, defaultValue, contextColumnNames } = fieldItem
-        const isSQL = String(defaultValue).includes('@SQL=') && isGetServer
+        const { id, uuid, columnName, isSameColumnElement, element_name, default_value } = fieldItem
+        let contextColumnNames = fieldItem.contextColumnNames
+        if (isEmptyValue(contextColumnNames)) {
+          contextColumnNames = fieldItem.context_column_names
+        }
+        const isSQL = String(default_value).startsWith('@SQL=') && isGetServer
 
         let parsedDefaultValue
         if (!isSQL) {
-          parsedDefaultValue = getDefaultValue({
+          parsedDefaultValue = getContextDefaultValue({
             ...fieldItem,
             parentUuid,
             contextColumnNames,
-            isSOTrxMenu
+            isSOTrxDictionary
           })
         }
         attributesObject[columnName] = parsedDefaultValue
 
-        if (fieldItem.isRange && fieldItem.componentPath !== 'FieldNumber') {
-          const { columnNameTo, elementNameTo, defaultValueTo } = fieldItem
-          const isSQLTo = String(defaultValueTo).includes('@SQL=') && isGetServer
+        if (isEmptyValue(default_value) && !isSameColumnElement) {
+          if (SALES_TRANSACTION_COLUMNS.includes(element_name)) {
+            parsedDefaultValue = getContextDefaultValue({
+              ...fieldItem,
+              column_name: element_name,
+              parentUuid,
+              contextColumnNames,
+              isSOTrxDictionary
+            })
+          }
+        }
+
+        if (fieldItem.is_range && fieldItem.componentPath !== 'FieldNumber') {
+          const { columnNameTo, elementNameTo, default_value_to } = fieldItem
+          const isSQLTo = String(default_value_to).startsWith('@SQL=') && isGetServer
 
           let parsedDefaultValueTo
           if (!isSQLTo) {
-            parsedDefaultValueTo = getDefaultValue({
+            parsedDefaultValueTo = getContextDefaultValue({
               ...fieldItem,
               parentUuid,
               contextColumnNames,
-              isSOTrxMenu,
-              columnName: columnNameTo,
-              elementName: elementNameTo
+              isSOTrxDictionary,
+              column_name: columnNameTo,
+              element_name: elementNameTo
             })
           }
 
@@ -329,20 +356,21 @@ const getters = {
         }
 
         // add display column to default
-        if (fieldItem.componentPath === 'FieldSelect') {
+        if (isSupportLookup(fieldItem.display_type)) {
           const { displayColumnName } = fieldItem
           let displayedValue
           if (!isEmptyValue(parsedDefaultValue)) {
             const optionsList = rootGetters.getStoredLookupAll({
               parentUuid,
               containerUuid,
-              contextColumnNames: fieldItem.reference.contextColumnNames,
+              contextColumnNames: fieldItem.context_column_names,
               contextColumnNamesByDefaultValue: contextColumnNames,
               id,
-              uuid
+              uuid,
+              value: parsedDefaultValue
             })
             if (!isEmptyValue(optionsList)) {
-              const option = optionsList.find(item => item.id === parsedDefaultValue)
+              const option = optionsList.find(item => item.value === parsedDefaultValue)
               if (!isEmptyValue(option)) {
                 displayedValue = option.displayedValue
               }
@@ -378,8 +406,8 @@ const getters = {
 
     if (fieldsList.length) {
       fieldsIsDisplayed = fieldsList.filter(itemField => {
-        const isMandatory = itemField.isMandatory && itemField.isMandatoryFromLogic
-        if (fieldIsDisplayed(itemField) && (isMandatory || itemField.isShowedFromUser)) {
+        const isMandatoryGenerated = itemField.is_mandatory && itemField.isMandatoryFromLogic
+        if (fieldIsDisplayed(itemField) && (isMandatoryGenerated || itemField.isShowedFromUser)) {
           return true
         }
         fieldsNotDisplayed.push(itemField)
@@ -413,9 +441,9 @@ const getters = {
 
     if (isOnlyDisplayed) {
       fieldsList = fieldsList.filter(fieldItem => {
-        const isMandatory = Boolean(fieldItem.isMandatory || fieldItem.isMandatoryFromLogic) && !fieldItem.isAdvancedQuery
-        const isDisplayed = fieldIsDisplayed(fieldItem) && (fieldItem.isShowedFromUser || isMandatory)
-        if (isDisplayed) {
+        const isMandatoryGenerated = Boolean(fieldItem.is_mandatory || fieldItem.isMandatoryFromLogic) && !fieldItem.isAdvancedQuery
+        const isDisplayedGenerated = fieldIsDisplayed(fieldItem) && (fieldItem.isShowedFromUser || isMandatoryGenerated)
+        if (isDisplayedGenerated) {
           return true
         }
         return false
@@ -425,16 +453,16 @@ const getters = {
     fieldsList.map(fieldItem => {
       // assign values
       let value = fieldItem.value
-      let valueTo = fieldItem.valueTo
+      let valueTo = fieldItem.value_to
 
       if (!isEmptyValue(value)) {
         if (['FieldDate', 'FieldTime'].includes(fieldItem.componentPath)) {
           value = value.getTime()
         }
-        attributesListLink += `${fieldItem.columnName}=${encodeURIComponent(value)}&`
+        attributesListLink += `${fieldItem.column_name}=${encodeURIComponent(value)}&`
       }
 
-      if (fieldItem.isRange && !isEmptyValue(valueTo)) {
+      if (fieldItem.is_range && !isEmptyValue(valueTo)) {
         if (['FieldDate', 'FieldTime'].includes(fieldItem.componentPath)) {
           valueTo = valueTo.getTime()
         }
@@ -477,26 +505,26 @@ const getters = {
         }
 
         // exclude key column if is new
-        if (row && row.isNew && fieldItem.isKey) {
+        if (row && row.isNew && fieldItem.is_key) {
           return false
         }
 
-        const isMandatory = Boolean(fieldItem.isMandatory || fieldItem.isMandatoryFromLogic)
+        const isMandatoryGenerated = Boolean(fieldItem.is_mandatory || fieldItem.isMandatoryFromLogic)
         // mandatory fields
         if (isEvaluateMandatory && fieldItem.panelType !== 'browser') {
-          if (isMandatory && !fieldItem.isAdvancedQuery) {
+          if (isMandatoryGenerated && !fieldItem.isAdvancedQuery) {
             return true
           }
         }
 
         // evaluate displayed fields
-        let isDisplayed = fieldItem.isShowedFromUser
+        let isDisplayedGenerated = fieldItem.isShowedFromUser
         if (!fieldItem.isAdvancedQuery) {
           // window, process, browser, form
-          isDisplayed = fieldIsDisplayed(fieldItem) && (fieldItem.isShowedFromUser || isMandatory)
+          isDisplayedGenerated = fieldIsDisplayed(fieldItem) && (fieldItem.isShowedFromUser || isMandatoryGenerated)
         }
 
-        if (isDisplayed) {
+        if (isDisplayedGenerated) {
           // from table
           if (row) {
             if (!isEmptyValue(row[columnName])) {
@@ -512,15 +540,16 @@ const getters = {
             columnName
           })
           let valueTo
-          if (fieldItem.isRange && fieldItem.componentPath !== 'FieldNumber') {
+          if (fieldItem.is_range && fieldItem.componentPath !== 'FieldNumber') {
             valueTo = rootGetters.getValueOfField({
               parentUuid: fieldItem.parentUuid,
               containerUuid,
               columnName: fieldItem.columnNameTo
             })
           }
-          if (!isEmptyValue(value) || !isEmptyValue(valueTo) || (fieldItem.isAdvancedQuery &&
-            ['NULL', 'NOT_NULL'].includes(fieldItem.operator))) {
+          if (!isEmptyValue(value) || !isEmptyValue(valueTo) ||
+            ((fieldItem.isAdvancedQuery || fieldItem.is_query_criteria) &&
+            IGNORE_VALUE_OPERATORS_LIST.includes(fieldItem.operator))) {
             return true
           }
         }
@@ -531,7 +560,7 @@ const getters = {
     // conever parameters
     parametersList = parametersList
       .map(parameterItem => {
-        const { columnName, isRange } = parameterItem
+        const { columnName, is_range } = parameterItem
         let value
         let valueTo
         if (row) {
@@ -546,17 +575,18 @@ const getters = {
         }
 
         let values = []
-        if (parameterItem.isAdvancedQuery && ['IN', 'NOT_IN'].includes(parameterItem.operator)) {
+        if ((parameterItem.isAdvancedQuery || parameterItem.is_query_criteria) &&
+          IGNORE_VALUE_OPERATORS_LIST.includes(parameterItem.operator)) {
           if (Array.isArray(value)) {
             values = value.map(itemValue => {
-              const isMandatory = !parameterItem.isAdvancedQuery &&
-                (parameterItem.isMandatory || parameterItem.isMandatoryFromLogic)
+              const isMandatoryGenerated = !parameterItem.isAdvancedQuery &&
+                (parameterItem.is_mandatory || parameterItem.isMandatoryFromLogic)
 
               return parsedValueComponent({
                 columnName,
                 componentPath: parameterItem.componentPath,
-                displayType: parameterItem.displayType,
-                isMandatory,
+                displayType: parameterItem.display_type,
+                isMandatory: isMandatoryGenerated,
                 value: itemValue
               })
             })
@@ -573,7 +603,7 @@ const getters = {
         }
         // only to fields type Time, Date and DateTime, and is range, with values
         // manage as Array = [value, valueTo]
-        if (isRange && parameterItem.componentPath !== 'FieldNumber') {
+        if (is_range && parameterItem.componentPath !== 'FieldNumber') {
           valueTo = rootGetters.getValueOfField({
             parentUuid: parameterItem.parentUuid,
             containerUuid,

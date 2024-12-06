@@ -1,24 +1,44 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
 const window = {
+  advancedQuery: {
+    title: 'Consulta Avanzada',
+    viewAll: 'Ver Todos',
+    help: 'Realiza una búsqueda haciendo uso de rangos de valores, selección múltiple de valores, y operadores de comparación'
+  },
+
   newRecord: 'Nuevo Registro',
+  copyRecord: 'Copiar Registro',
   deleteRecord: 'Eliminar Registro',
+  confirmDeleteRecord: '¿Está seguro de que quiere eliminar este registro?',
+  confirmDisabledRecord: '¿Está seguro de que quiere deshabilitar este registro?',
+  cancel: 'Cancelar',
+  confirm: 'Confirmar',
   undoNew: 'Descartar Nuevo Registro',
   containerInfo: {
-    notes: 'Listado de Notas',
+    notes: 'Notas',
+    emptyNote: 'No se puede crear una nota en blanco',
+    issues: 'Solicitudes',
+    accountingInformation: {
+      title: 'Información Contable',
+      selection: 'Selección'
+    },
     changeLog: 'Actividad',
     workflowLog: 'Histórico de Flujo de Trabajo',
     changeDetail: 'Detalle del cambio',
@@ -29,17 +49,49 @@ const window = {
       timeElapsed: 'Tiempo transcurrido',
       addNote: 'Agregar Nota'
     },
-    attachment: {
-      label: 'Anexo',
-      uploadFiles: 'Cargar Archivos',
-      newFiles: 'Nuevos Archivos'
-    }
+    log: {
+      changeHistory: 'Histórico de Cambios',
+      column: 'Columna',
+      created: 'Creado',
+      createdBy: 'Creado Por',
+      deleted: 'Eliminado',
+      deletedBy: 'Eliminado Por',
+      field: 'Campo',
+      updated: 'Actualizado',
+      updatedBy: 'Actualizado Por',
+      newValue: 'Nuevo Valor',
+      oldValue: 'Valor Antiguo',
+      recordID: 'ID del Registro',
+      recordUUID: 'UUID del Registro',
+      tab: 'Pestaña',
+      tableName: 'Nombre de la Tabla',
+      allChanges: 'Ver todos los cambios '
+    },
+    notices: {
+      user: 'Usuario',
+      read: 'Leer Actual',
+      allRead: 'Leer Todos'
+    },
+    referenceRecords: 'Documentos Relacionados'
   },
   documentStatus: 'Estatus del Documento',
   callout: {
     error: 'Error En Callout'
   },
+  toggleSingle: 'Cambiar Mono',
+  multiRecord: 'Multi Registro',
   gridToggle: 'Cambiar mono/multi registro',
+  recordValidation: {
+    closeWindow: 'Cerrar Ventana',
+    tab: 'Pestaña',
+    field: 'Campo',
+    value: 'Valor',
+    discardChanges: 'Descartar Cambios',
+    returnToWindow: 'Regresar a la Ventana'
+  },
+  tab: {
+    sequenceTab: 'Pestaña de Sequencia'
+  },
   toggleTabContentVisibility: 'Cambiar visibilidad del contenido de la pestaña'
 }
 

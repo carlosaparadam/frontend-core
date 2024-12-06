@@ -10,7 +10,7 @@
 
 <script>
 // components and mixins
-import ModalIdle from '@theme/components/ADempiere/ModalIdle'
+import ModalIdle from '@/components/ADempiere/ModalIdle'
 
 export default {
   name: 'App',
@@ -21,9 +21,24 @@ export default {
     },
     isSession() {
       return this.$store.getters['user/getIsSession']
+    },
+    getRole() {
+      return this.$store.getters['user/getRole']
+    },
+    getResourceName() {
+      if (this.isEmptyValue(this.getRole) && this.isEmptyValue(this.getRole.client)) return ''
+      return this.$store.getters['user/getRole'].client.logo
+    },
+    defaultImageLogo() {
+      return require('@/image/ADempiere/logo.jpg')
+    },
+    nameSystem() {
+      const { name } = this.$store.getters['user/getSystem']
+      if (name) return name
+      return 'ADempiere'
     }
   },
-  mounted() {
+  async mounted() {
     this.$nextTick(() => {
       window.addEventListener('resize', this.getWindowWidth)
       window.addEventListener('resize', this.getWindowHeight)

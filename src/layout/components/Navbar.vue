@@ -9,49 +9,81 @@
       style="padding-top: 13px; color: #000000;font-size: 121%;font-weight: 615!important;"
       @click="isMenuOption()"
     />
-    <breadcrumb v-show="!isMenuMobile || device!=='mobile'" id="breadcrumb-container" class="breadcrumb-container" :style="isMobile ? { width: '40%' } : { width: 'auto' } " />
-    <div v-show="isMenuMobile && isMobile" style="display: inline-flex; float: right;">
+    <breadcrumb v-if="device!=='mobile'" id="breadcrumb-container" class="breadcrumb-container" :style="isMobile ? { width: '40%' } : { width: 'auto' } " />
+    <div v-if="isMenuMobile && isMobile" style="display: inline-flex; float: right;">
       <el-button icon="el-icon-s-tools" type="text" />
       <search id="header-search" class="right-menu-item" style="padding-top: 10px;" />
       <header-notification style="padding-top: 6px;" />
     </div>
     <div class="right-menu">
-      <template v-if="device!=='mobile'">
-        <el-tooltip class="item" effect="dark" content="Reinicia Cache" placement="top-start">
-          <el-button icon="el-icon-s-tools" type="text" style="color: black;font-size: 18px;" @click="cacheReset()" />
-        </el-tooltip>
-        <el-tooltip v-if="$route.meta.type !== 'window'" :content="$t('route.guide')" placement="top-start">
+      <template>
+        <!-- <el-tooltip class="item" effect="dark" content="Reinicia Cache" placement="top-start">
+          <el-button icon="el-icon-refresh-right" type="text" style="color: black;font-size: 18px;" @click="cacheReset()" />
+        </el-tooltip> -->
+        <el-tooltip v-if="!isMobile" :content="$t('route.guide')" placement="top-start">
           <el-button icon="el-icon-info" type="text" style="color: black;font-size: larger" @click.prevent.stop="guide" />
         </el-tooltip>
         <search id="header-search" class="right-menu-item" />
         <header-notification id="badge-navar" />
-        <error-log class="errLog-container right-menu-item hover-effect" />
+        <error-log v-if="!isMobile" class="errLog-container right-menu-item hover-effect" />
 
-        <screenfull id="screenfull" class="right-menu-item hover-effect" />
+        <screenfull v-if="!isMobile" id="screenfull" class="right-menu-item hover-effect" />
 
+        <!--
         <el-tooltip :content="$t('navbar.size')" effect="dark" placement="bottom">
           <size-select id="size-select" class="right-menu-item hover-effect" />
         </el-tooltip>
+        -->
 
         <lang-select class="right-menu-item hover-effect" />
 
       </template>
-      <el-button v-show="!isMenuMobile && isMobile" type="text" icon="el-icon-more" @click="isMenuOption()" />
+      <el-button v-if="isMobile" type="text" icon="el-icon-more" @click="isMenuOption()" />
       <el-popover
+        v-model="isProfilePreview"
         placement="bottom"
         width="260"
         trigger="click"
       >
         <div style="padding: 10px;">
-          <profile-preview
-            :user="user"
-            :avatar="avatar"
-          />
-          <el-button type="text" style="float: left;" @click="handleClick">{{ $t('navbar.profile') }}</el-button>
+          <div @click="zoomInProfile()">
+            <profile-preview
+              :user="user"
+              :avatar="imageUrl"
+            />
+          </div>
+          <el-button type="text" style="float: left;" @click="cacheReset()"> {{ $t('navbar.resetCache') }}</el-button>
           <el-button type="text" style="float: right;" @click="logout">{{ $t('navbar.logOut') }}</el-button>
         </div>
-        <el-button slot="reference" type="text" style="padding-top: 0px;">
-          <img :src="avatarResize" class="user-avatar">
+        <el-button slot="reference" type="text" style="padding-top: 5px;padding-right: 10px;">
+          <el-image
+            :src="imageUrl"
+            fit="contain"
+            style="
+              width: 40px;
+              height: 40px;
+              border-radius: 50%;
+              display: inline-block;
+              position: relative;
+              cursor: default;
+              box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            "
+          >
+            <div slot="error" class="image-slot">
+              <img
+                :src="imageDefault"
+                style="
+                  width: 40px;
+                  height: 40px;
+                  border-radius: 50%;
+                  display: inline-block;
+                  position: relative;
+                  cursor: default;
+                  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+                "
+              >
+            </div>
+          </el-image>
         </el-button>
       </el-popover>
     </div>
@@ -61,17 +93,20 @@
 <script>
 import ProfilePreview from '@/layout/components/ProfilePreview'
 import { mapGetters } from 'vuex'
-import Breadcrumb from '@theme/components/Breadcrumb'
-import Hamburger from '@theme/components/Hamburger'
-import ErrorLog from '@theme/components/ErrorLog'
-import Screenfull from '@theme/components/Screenfull'
-import SizeSelect from '@theme/components/SizeSelect'
-import LangSelect from '@theme/components/LangSelect'
-import Search from '@theme/components/HeaderSearch'
-import HeaderNotification from '@theme/components/ADempiere/HeaderNotification'
-import { getImagePath } from '@/utils/ADempiere/resource.js'
+import Breadcrumb from '@/components/Breadcrumb'
+import Hamburger from '@/components/Hamburger'
+import ErrorLog from '@/components/ErrorLog'
+import Screenfull from '@/components/Screenfull'
+// import SizeSelect from '@/components/SizeSelect'
+import LangSelect from '@/components/LangSelect'
+import Search from '@/components/HeaderSearch'
+import HeaderNotification from '@/components/ADempiere/HeaderNotification'
 import Driver from 'driver.js' // import driver.js
 import 'driver.js/dist/driver.min.css' // import driver.js css
+// Constants
+// import { COLUMN_NAME, TABLE_NAME_USER } from '@/utils/ADempiere/constants/resoucer.ts'
+// // Utils and Helper Methods
+// import { pathImageWindows } from '@/utils/ADempiere/resource.js'
 
 export default {
   components: {
@@ -80,7 +115,7 @@ export default {
     Hamburger,
     ErrorLog,
     Screenfull,
-    SizeSelect,
+    // SizeSelect,
     LangSelect,
     ProfilePreview,
     Search
@@ -88,20 +123,28 @@ export default {
   data() {
     return {
       user: {},
-      listWindow: [],
       isMenuMobile: false,
-      driver: null
+      driver: null,
+      avatarResize: this.imageDefault,
+      isProfilePreview: false
     }
   },
   computed: {
+    userAvatar() {
+      return this.$store.getters['user/getUserAvatar']
+    },
+    clientUuid() {
+      const { client_uuid } = this.userInfo
+      return client_uuid
+    },
+    imageUrl() {
+      return this.$store.getters['user/getUserUrl']
+    },
     isMobile() {
       return this.$store.state.app.device === 'mobile'
     },
-    isShowedPOSKeyLaout() {
-      return this.$store.getters.getShowPOSKeyLayout
-    },
-    showCollection() {
-      return this.$store.getters.getShowCollectionPos
+    userInfo() {
+      return this.$store.getters['user/userInfo']
     },
     showGuide() {
       const typeViews = this.$route.meta.type
@@ -110,38 +153,52 @@ export default {
       }
       return false
     },
+    imageDefault() {
+      return require('@/image/ADempiere/avatar/no-avatar.png')
+    },
     ...mapGetters([
       'sidebar',
       'avatar',
       'device'
     ]),
-    avatarResize() {
-      if (this.isEmptyValue(this.avatar)) {
-        return 'https://avatars1.githubusercontent.com/u/1263359?s=200&v=4?imageView2/1/w/80/h/80'
-      }
-
-      const { uri } = getImagePath({
-        file: this.avatar,
-        width: 40,
-        height: 40
-      })
-
-      return uri
-    },
     fieldPanel() {
+      if (this.$route.meta.type === 'browser') return this.$store.getters.getStoredBrowser(this.$route.meta.uuid).fieldsList.filter(field => field.isMandatory || field.isShowedFromUser)
+      if (this.$route.meta.type === 'report') return this.$store.getters.getStoredReport(this.$route.meta.uuid).fieldsList.filter(field => field.isMandatory || field.isShowedFromUser)
+      if (this.$route.meta.type === 'window') {
+        const { currentTab } = this.$store.getters.getContainerInfo
+        if (!this.isEmptyValue(currentTab)) {
+          const {
+            parentUuid,
+            containerUuid
+          } = currentTab
+          return this.$store.getters.getStoredFieldsFromTab(parentUuid, containerUuid).filter(field => field.isMandatory || field.isShowedFromUser)
+        }
+        return []
+      }
       return this.$store.getters.getStoredFieldsFromProcess(this.$route.meta.uuid).filter(field => field.isMandatory || field.isShowedFromUser)
     },
+    fieldTab() {
+      const tab = this.$store.getters.getStoredWindow(this.$route.meta.uuid)
+      if (!this.isEmptyValue(tab)) {
+        const tabChildIndex = parseInt(this.$route.query.tabChild)
+        const tabIndex = parseInt(this.$route.query.tab)
+        const fieldsListParentTab = tab.tabsListParent[tabIndex].fieldsList.filter(field => field.isMandatory && field.isShowedFromUser)
+        const fieldsListChildTab = tab.tabsListChild[tabChildIndex].fieldsList.filter(field => field.isMandatory && field.isShowedFromUser)
+        return fieldsListParentTab.concat(fieldsListChildTab)
+      }
+      return []
+    },
     getForm() {
-      return this.$store.getters.getForm(this.$route.meta.uuid)
+      return this.$store.getters.getStoredForm(this.$route.meta.uuid)
     },
     formSteps() {
       let form
       switch (this.getForm.fileName) {
         case 'WFActivity':
-          form = require('@theme/components/ADempiere/Form/WorkflowActivity/Guide/steps')
+          form = require('@/components/ADempiere/Form/WorkflowActivity/Guide/steps')
           break
         case 'VPOS':
-          form = require('@theme/components/ADempiere/Form/VPOS/Guide/steps')
+          form = require('@/components/ADempiere/Form/VPOS/Guide/steps')
           break
         default:
           form = {
@@ -162,8 +219,16 @@ export default {
     this.driver = new Driver()
   },
   methods: {
+    zoomInProfile() {
+      this.$router.push({
+        path: '/profile/index'
+      }, () => {})
+      this.isProfilePreview = false
+    },
     guide() {
+      this.driver = new Driver()
       const value = this.formatGuide(this.$route.meta.type)
+      if (this.isEmptyValue(value)) return
       this.driver.defineSteps(value)
       this.driver.start()
     },
@@ -171,7 +236,7 @@ export default {
       this.isMenuMobile = !this.isMenuMobile
     },
     cacheReset() {
-      this.$store.dispatch('runCache')
+      this.$store.dispatch('runCacheReset')
     },
     toggleSideBar() {
       this.$store.dispatch('app/toggleSideBar')
@@ -229,8 +294,20 @@ export default {
             }
           })
           break
+        case 'browser':
+          field = this.fieldPanel.map(steps => {
+            return {
+              element: '#' + steps.columnName,
+              popover: {
+                title: steps.name,
+                description: steps.description,
+                position: 'top'
+              }
+            }
+          })
+          break
         case 'window':
-          field = this.listWindow.map(steps => {
+          field = this.fieldPanel.map(steps => {
             return {
               element: '#' + steps.columnName,
               popover: {
@@ -324,6 +401,13 @@ export default {
         position: relative;
 
         .user-avatar {
+          width: 32px;
+          height: 40px;
+          border-radius: 50%;
+          display: inline-block;
+          position: relative;
+          cursor: default;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
           cursor: pointer;
           width: 40px;
           height: 40px;

@@ -21,5 +21,7 @@
 export default {
   listOrderLine: [],
   line: {},
+  isloadedLine: false,
+  listWarehouse: [],
   validatePin: false
 }

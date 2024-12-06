@@ -1,29 +1,35 @@
-// ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
-// Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A.
-// Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com www.erpya.com
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+/**
+ * ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
+ * Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ * Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
 
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
+// Constants
+import { IS_ADVANCED_QUERY } from '@/utils/ADempiere/dictionaryUtils'
 
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
-// utils and helper methods
+// Utils and Helper Methods
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 import { generateField } from '@/utils/ADempiere/dictionaryUtils.js'
 import { getFieldTemplate } from '@/utils/ADempiere/lookupFactory.js'
-
+import { isAddRangeField } from '@/utils/ADempiere/references'
+import { templateFields } from '@/utils/ADempiere/dictionary/window/templatesWindow.js'
 /**
  * Order the fields, then assign the groups to each field, and finally group
  * in an array according to each field group to show in panel (or table).
  * @param {array} fieldsList
- * @param {string} orderBy sequence, sortNo, seqNoGrid
+ * @param {string} orderBy sequence, sort_no, seq_no_grid
  * @param {string} type asc | desc
  * @returns {array}
  */
@@ -53,7 +59,7 @@ export function sortFields({
  * [assignedGroup]
  * @param {array} fieldsList List of fields
  * @param {string} groupToAssigned group assing to fields
- * @param {string} orderBy sequence, sortNo, seqNoGrid
+ * @param {string} orderBy sequence, sort_no, seq_no_grid
  * @return {array} fieldsList
  */
 export function assignedGroup({
@@ -85,7 +91,7 @@ export function assignedGroup({
     if (!firstChangeGroup) {
       if (!isEmptyValue(fieldElement.fieldGroup.name) &&
         currentGroup !== fieldElement.fieldGroup.name &&
-        fieldElement.isDisplayed) {
+        fieldElement.is_displayed) {
         firstChangeGroup = true
       }
     }
@@ -116,7 +122,6 @@ export function assignedGroup({
  * @param {string} parentUuid
  * @param {string} containerUuid
  * @param {object} panelMetadata
- * @param {boolean} isAddFieldsRange
  * @param {boolean} isAddFieldUuid
  * @param {boolean} isAddLinkColumn
  * @param {object} fieldOverwrite
@@ -126,25 +131,27 @@ export function generatePanelAndFields({
   parentUuid,
   containerUuid,
   panelMetadata = {},
-  isAddFieldsRange = false,
   isAddFieldUuid = false,
   isAddLinkColumn = false,
   fieldOverwrite = {},
-  sortField = 'sequence' //  sequence, sortNo, seqNoGrid
+  sortField = 'sequence', // sequence, sort_no, seq_no_grid,
+  evaluateDefaultFieldShowed,
+  evaluateDefaultColumnShowed
 }) {
   const fieldAdditionalAttributes = {
     parentUuid,
     containerUuid,
     // tab attributes
-    tabTableName: panelMetadata.tableName,
+    tabTableName: panelMetadata.table_name,
+    panelName: panelMetadata.name,
     // app attributes
     isShowedFromUser: true,
     isReadOnlyFromForm: false,
+    isAdvancedQuery: containerUuid.includes(IS_ADVANCED_QUERY),
     ...fieldOverwrite
   }
 
   const fieldsRangeList = []
-  const selectionColumns = []
   let identifierColumns = []
 
   let keyColumn
@@ -152,32 +159,36 @@ export function generatePanelAndFields({
   // convert fields and add app attributes
   let fieldsList = panelMetadata.fields.map((fieldItem, index) => {
     const fieldDefinition = generateField({
-      fieldToGenerate: fieldItem,
+      fieldToGenerate: templateFields(fieldItem),
+      evaluateDefaultFieldShowed,
+      evaluateDefaultColumnShowed,
       moreAttributes: {
         ...fieldAdditionalAttributes,
         fieldsListIndex: index
       }
     })
-    const { columnName, componentPath } = fieldDefinition
+    const { column_name, componentPath } = fieldDefinition
 
-    if (fieldDefinition.isKey) {
-      keyColumn = columnName
+    if (fieldDefinition.is_key) {
+      keyColumn = column_name
     }
-    if (fieldDefinition.isSelectionColumn) {
-      selectionColumns.push(columnName)
-    }
-    if (fieldDefinition.isIdentifier) {
+    if (fieldDefinition.is_identifier) {
       identifierColumns.push({
-        columnName,
+        name: fieldDefinition.name,
+        columnName: column_name,
+        displayColumnName: fieldDefinition.displayColumnName,
         identifierSequence: fieldDefinition.identifierSequence,
+        display_type: fieldDefinition.display_type,
         componentPath
       })
     }
 
     // Add new field if is range number
-    if (isAddFieldsRange && fieldDefinition.isRange && componentPath === 'FieldNumber') {
+    if (isAddRangeField(fieldDefinition)) {
       const fieldRange = generateField({
         fieldToGenerate: fieldItem,
+        evaluateDefaultFieldShowed,
+        evaluateDefaultColumnShowed,
         moreAttributes: fieldAdditionalAttributes,
         typeRange: true
       })
@@ -192,7 +203,8 @@ export function generatePanelAndFields({
     fieldsList = fieldsList.concat(fieldsRangeList)
   }
 
-  fieldsList = generateDependenFieldsList(fieldsList)
+  // get from server
+  // fieldsList = generateDependenFieldsList(fieldsList)
 
   identifierColumns = sortFields({
     fieldsList: identifierColumns,
@@ -203,17 +215,17 @@ export function generatePanelAndFields({
   if (isAddLinkColumn) {
     // parent link column name
     fieldLinkColumnName = fieldsList.find(fieldItem => {
-      return fieldItem.isParent
+      return fieldItem.is_parent
     })
     if (fieldLinkColumnName) {
-      fieldLinkColumnName = fieldLinkColumnName.columnName
+      fieldLinkColumnName = fieldLinkColumnName.column_name
     }
   }
 
   if (isAddFieldUuid) {
     // indicates it contains the uuid field
     const isWithUuidField = fieldsList.some(fieldItem => {
-      return fieldItem.columnName === 'UUID'
+      return fieldItem.column_name === 'UUID'
     })
     // add field uuid column name
     if (!isWithUuidField) {
@@ -244,10 +256,11 @@ export function generatePanelAndFields({
     fieldsList,
     // app attributes
     keyColumn,
-    selectionColumns,
+    sortOrderColumnName: sortField,
     identifierColumns,
     isLoadedFieldsList: true,
-    isShowedTotals: false
+    isShowedTotals: false,
+    isEditSecuence: false
   }
 
   // delete unused and dupicated property with 'fieldsList'
@@ -259,20 +272,20 @@ export function generatePanelAndFields({
 /**
  * Get dependent fields on all elemnets
  * TODO: Improve performance and reduce array cycles
+ * TODO: Add dependents on all tabs to window container
  * @param {array} fieldsList
  * @returns {array}
  */
 export function generateDependenFieldsList(fieldsList) {
   fieldsList.forEach((itemField, index, listFields) => {
-    if (isEmptyValue(itemField.parentFieldsList) || !itemField.isActive) {
+    if (isEmptyValue(itemField.parentFieldsList)) {
       return
     }
 
-    itemField.parentFieldsList.forEach(parentColumnName => {
+    itemField.parentFieldsList.forEach(itemParentColumnName => {
       const parentField = listFields.find(parentFieldItem => {
-        return parentColumnName !== itemField.columnName &&
-          (parentColumnName === parentFieldItem.columnName ||
-          parentColumnName === parentFieldItem.elementName)
+        return (itemParentColumnName === parentFieldItem.column_name ||
+          itemParentColumnName === parentFieldItem.element_name)
       })
 
       if (isEmptyValue(parentField)) {
@@ -280,14 +293,43 @@ export function generateDependenFieldsList(fieldsList) {
       }
 
       // set and remove duplicates columnNames
-      parentField.dependentFieldsList = [
+      parentField.dependent_fields = [
         ...new Set([
-          itemField.columnName,
-          ...parentField.dependentFieldsList
+          itemField.column_name,
+          ...parentField.dependent_fields
         ])
       ]
     })
   })
 
   return fieldsList
+}
+
+export function panelAdvanceQuery({
+  parentUuid,
+  containerUuid,
+  tabPanel
+}) {
+  const tabAdvancedQuery = {
+    ...tabPanel,
+    parentUuid: parentUuid + IS_ADVANCED_QUERY,
+    containerUuid: containerUuid + IS_ADVANCED_QUERY,
+    fieldsList: tabPanel.fieldsList.map(field => {
+      return generateField({
+        fieldToGenerate: {
+          ...field,
+          parentUuid: field.parentUuid + IS_ADVANCED_QUERY,
+          containerUuid: field.containerUuid + IS_ADVANCED_QUERY
+        },
+        moreAttributes: {
+          isAdvancedQuery: true
+        },
+        evaluateDefaultFieldShowed: ({ is_selection_column }) => {
+          return is_selection_column
+        }
+      })
+    }),
+    uuid: tabPanel.uuid + IS_ADVANCED_QUERY
+  }
+  return tabAdvancedQuery
 }

@@ -1,13 +1,18 @@
+// import {
+//   // requestListEntityChats,
+// } from '@/api/ADempiere/window'
 import {
-  requestListEntityChats,
   requestListChatsEntries,
-  requestCreateChatEntry
-} from '@/api/ADempiere/window'
+  requestCreateChatEntry,
+  requestListEntityChats
+} from '@/api/ADempiere/logs/tabInfo/chatsEntries.ts'
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
+import { showMessage } from '@/utils/ADempiere/notification'
 
 const initStateChatEntries = {
   listRecordChats: [],
   listChatEntries: [],
+  isLoaded: false,
   chatText: '',
   isNote: false
 }
@@ -26,6 +31,9 @@ export default {
     },
     isNote(state, payload) {
       state.isNote = payload
+    },
+    setIsLoadListChat(state, loading) {
+      state.isLoaded = loading
     }
   },
   actions: {
@@ -34,23 +42,31 @@ export default {
       recordId,
       comment
     }) {
-      return requestCreateChatEntry({
-        tableName,
-        recordId,
-        comment
-      })
-        .then(() => {
-          commit('isNote', true)
-          commit('setChatText', '')
+      return new Promise(resolve => {
+        requestCreateChatEntry({
+          tableName,
+          recordId,
+          comment
+        })
+          .then((response) => {
+            commit('isNote', true)
+            commit('setChatText', '')
 
-          dispatch('listChatEntries', {
-            tableName,
-            recordId
+            dispatch('listChatEntries', {
+              tableName,
+              recordId
+            })
+            resolve(response)
           })
-        })
-        .catch(error => {
-          console.warn(`Error getting ProductInfo error en guardar: ${error.message}. Code: ${error.code}.`)
-        })
+          .catch(error => {
+            console.warn(`Error in Add New Note: ${error.message}. Code: ${error.code}.`)
+            showMessage({
+              type: 'error',
+              message: error.message
+            })
+            resolve(error)
+          })
+      })
     },
     listChatEntries({ commit }, {
       tableName,
@@ -59,6 +75,7 @@ export default {
       pageSize,
       pageToken
     }) {
+      commit('setIsLoadListChat', true)
       return requestListEntityChats({
         tableName,
         recordId,
@@ -67,12 +84,16 @@ export default {
         pageToken
       })
         .then(responseList => {
-          const { entityChatsList: chatList } = responseList
-
+          const { entity_chats: chatList } = responseList
+          if (isEmptyValue(chatList)) {
+            commit('addListChatEntries', [])
+          }
           chatList.forEach(chat => {
             const uuid = chat.chatUuid
-
+            const idChat = chat.chat_id
             requestListChatsEntries({
+              tableName,
+              id: idChat,
               uuid,
               pageSize
             })
@@ -80,13 +101,17 @@ export default {
                 commit('addListChatEntries', responseChat.chatEntriesList)
               })
               .catch(error => {
+                commit('addListChatEntries', [])
                 console.warn(`Error getting List Chat Entries: ${error.message}. Code: ${error.code}.`)
               })
           })
           commit('isNote', !isEmptyValue(chatList))
           commit('addListRecordChats', responseList)
+          commit('setIsLoadListChat', false)
         })
         .catch(error => {
+          commit('setIsLoadListChat', false)
+          commit('addListChatEntries', [])
           console.warn(`Error getting List Chat: ${error.message}. Code: ${error.code}.`)
         })
     }
@@ -103,6 +128,9 @@ export default {
     },
     getIsNote: (state) => {
       return state.isNote
+    },
+    getIsLoadListChat: (state) => {
+      return state.isLoaded
     }
   }
 }
